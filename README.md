@@ -71,24 +71,24 @@ A plain substring check won't work ("s" is in "us 9").
 
 ### `search_listings`
 
-- **What it does:**
-- **Inputs:** <!-- name and type each: `max_price` (float), not "a price" -->
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Filters the listings file by price and size, then ranks what's left by how many words from the description each listing contains.
+- **Inputs:** `description` (str), `size` (str or None: matched by whole size, so "M" matches "S/M" but "L" doesn't match "XL"), `max_price` (float or None, inclusive)
+- **Returns:** A list of up to 10 listing dicts, best match first. Each has `id`, `title`, `description`, `category`, `style_tags`, `size`, `condition`, `price`, `colors`, `brand`, `platform`.
+- **When it has nothing:** An empty list `[]`. Never `None`, never an error.
 
 ### `suggest_outfit`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Asks the model for one or two outfits that pair the new item with pieces from the user's wardrobe.
+- **Inputs:** `new_item` (dict, one listing), `wardrobe` (dict with an `items` list; each item has `name`, `category`, `colors`, `style_tags`, `notes`)
+- **Returns:** A non-empty string of outfit ideas that name specific wardrobe pieces.
+- **When it has nothing:** If the wardrobe is empty, it returns general styling advice for the item instead.
 
 ### `create_fit_card`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Asks the model for a short caption someone would actually post about the find.
+- **Inputs:** `outfit` (str, from `suggest_outfit`), `new_item` (dict, the same listing)
+- **Returns:** A 2–4 sentence string that mentions the item's title, price, and platform once each.
+- **When it has nothing:** If `outfit` is empty or only whitespace, it returns the string `"Can't write a fit card without an outfit suggestion."` without calling the model.
 
 ---
 
@@ -107,11 +107,28 @@ A plain substring check won't work ("s" is in "us 9").
 
 **Branch rule:**
 
+1. **Empty search (required):** If `search_listings` returns an empty list, put a
+   message in `session["error"]` that names what to change (a higher price, a
+   different size, or a broader word) and stop without calling `suggest_outfit`.
+   Otherwise, go to rule 2.
+2. **Fair-condition top result (stretch: second branch):** If the first result's
+   `condition` is "fair", look at the next two results and pick the first one
+   whose `condition` is "good" or "excellent". If neither is, keep the first
+   result. Otherwise, take the first result. Either way, the pick goes in
+   `session["selected_item"]` and the loop moves on to `suggest_outfit`.
+
 **Where it lives:** `agent.py::run_agent`
 
-**How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
+**How the query is parsed:** Regex. A price comes from phrases like "under $30",
+"below $30", or a bare "$30". A size comes from "size M", "size US 9", or
+"size W30". Whatever words are left become the description.
 
-**What moves through the session:** <!-- which fields, in what order -->
+**What moves through the session:** `query` → `parsed` (description, size,
+max_price) → `search_results` → `selected_item` → `outfit_suggestion` →
+`fit_card`. On the empty path it stops after `search_results` and sets `error`;
+`selected_item`, `outfit_suggestion`, and `fit_card` stay `None`.
+
+
 
 ---
 
