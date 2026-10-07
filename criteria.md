@@ -25,9 +25,7 @@ Given a query that matches at least one listing, the agent completes all three
 tool calls and returns a fit card — in at least 4 of 5 tries.
 
 **Why this target:**
-<!-- Why 4 of 5 and not 5 of 5? Something about your search, probably —
-     "my search is a plain keyword match and some phrasings will miss" is a
-     real answer. -->
+I picked 4 of 5 because two things on this path can vary. My query parser is regex, so an unusual phrasing like "nothing over thirty bucks" can be misread, which turns a query that should match into an empty search. And suggest_outfit and create_fit_card both call the model, so a slow or failed response can stop a run before the fit card. Expecting 5 of 5 would mean assuming neither of those ever happens.
 
 ---
 
@@ -37,8 +35,7 @@ Given a query that matches no listings, the agent stops before calling
 `suggest_outfit` and returns a message naming what to change — 5 of 5 tries.
 
 **Why this target:**
-<!-- Why is 5 of 5 reasonable here when criterion 1 isn't? What's different
-     about this path? -->
+I picked 5 of 5 because nothing on this path is random. search_listings always returns a list ([] when nothing matches, never None), the loop checks for that empty list with a plain if, and the message about what to change is built in code, not written by the model. The model is never called on this path, so the same impossible query gives the same result every time, and even one miss would mean the branch is broken.
 
 ---
 
