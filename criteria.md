@@ -42,27 +42,17 @@ Given a query that matches no listings, the agent stops before calling
 
 ---
 
-## 3. Something about state
-
-<!-- YOU WRITE THIS ONE.
-
-     How would you know that the item your search found is the same item the
-     next tool received? Name something countable or observable.
-
-     This is the criterion people find hardest, because state failure doesn't
-     look like state failure — it looks like a tool problem. Something that
-     compares session["selected_item"] against what actually reached
-     suggest_outfit is the shape you're after. -->
-
-
+## 3. State is preserved across the tool handoff
+Given a query that matches a listing, the item passed to `suggest_outfit` has the same `id` as `session["selected_item"]` in 5 of 5 tries. The same listing must reach the second tool; a different item, a stale result, or an empty dict is a failure.
 
 **Why this target:**
-
-
+I picked 5 of 5 because passing the item to suggest_outfit is a deterministic handoff, with no model randomness involved. Criterion 1 allows a miss because wording can vary, but this step does the same thing every run, so even one wrong item would mean the session state is wrong.
 
 ---
 
 ## 4. Something about the fit card
+
+Given a query that matches a listing, the caption must mention the item’s price (regardless of format) and it must stay between 2 and 4 sentences in 4 of 5 tries.
 
 <!-- YOU WRITE THIS ONE.
 
@@ -78,13 +68,12 @@ Given a query that matches no listings, the agent stops before calling
 
 
 **Why this target:**
-
-
+I picked 4 of 5 because the model is allowed to vary in wording, but the fit card still needs to keep the basic facts the user would actually use to decide on the item. A caption that omits the price is not just stylistically weaker; it fails the core purpose of the tool, which is to help someone judge whether a find is worth buying. I didn’t choose 5 of 5 because the model writes each caption fresh at a high temperature (0.9), so even when the prompt asks for the price and 2–4 sentences, it can occasionally omit the price or drift into a sentence count that is too short or too long.
 
 ---
 
 ## 5. Your choice
-
+Given a query that matches a listing, the agent should take under a minute from the first ask command to provide the user with a response (fit card or error message) in 4 of 5 tries.
 <!-- YOU WRITE THIS ONE TOO.
 
      Pick something you actually care about getting right. Speed, the empty
@@ -95,6 +84,8 @@ Given a query that matches no listings, the agent stops before calling
 
 
 **Why this target:**
+I picked under a minute because a normal run only makes 2 model calls, which should take about 15–30 seconds total. I chose 4 of 5 instead of 5 of 5 because network latency or a slow model response can add a long wait when the model is busy or rate-limited, and that is outside my code’s control.
+
 
 
 
