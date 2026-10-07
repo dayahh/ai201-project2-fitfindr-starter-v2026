@@ -53,6 +53,8 @@ A plain substring check won't work ("s" is in "us 9").
 
 <!-- Three or four sentences: what a user asks for, and what they get back. -->
 
+FitFindr is a thrifting agent. You describe what you want in plain language, like `'vintage graphic tee under $30, size M'`, and it searches 40 secondhand listings from Depop, ThredUp, and Poshmark for the best match within your price and size. It then suggests one or two outfits that pair the find with pieces from your wardrobe, and writes a short caption you could post about it. If nothing matches, it stops and tells you what to change, such as raising your price, trying another size, or using a broader word.
+
 
 
 ---
@@ -208,15 +210,15 @@ Can't write a fit card without an outfit suggestion.
 
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* Criterion 3 going through several drafts since I didn't understand how to build my own
+- *What came back:* Templates to follow and a breakdown on what made the first two criteria successful 
+- *What I changed:* I changed some of the formatting for what Claude gave me because I wanted it to fit with my own words and personal reflection
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* Helping me check enviornment values to make sure it was going with what the guidelines said I was supposed to do
+- *What came back:* Claude explained to me that I shared my key in the wrong place. It corrected these changes.
+- *What I changed:* I made sure to check with my human eyes that I could understand these changes and edits to the env file and it all worked out.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
