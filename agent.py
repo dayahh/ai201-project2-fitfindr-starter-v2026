@@ -13,6 +13,8 @@ Build and test your three tools in `tools.py` first. Then come here.
     python agent.py          runs both example paths below
 """
 
+import re
+
 import config
 import trace
 from tools import search_listings, suggest_outfit, create_fit_card
@@ -107,9 +109,138 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     """
     session = new_session(query, wardrobe)
 
-    # TODO: delete these two lines and build the loop.
-    session["error"] = "The planning loop isn't built yet — see the TODO in agent.py."
+    # Each pass runs one step, writes its result into the session, then looks
+    # at that result to pick the next step. Every tool reads its inputs back
+    # out of the session rather than from a local variable.
+    step = "parse"
+    count = 0
+    while step != "done":
+        count += 1
+        trace.check_iterations(count)
+
+        if step == "parse":
+            session["parsed"] = _parse_query(session["query"])
+            step = "search"
+
+        elif step == "search":
+            parsed = session["parsed"]
+            session["search_results"] = search_listings(
+                parsed["description"], parsed["size"], parsed["max_price"]
+            )
+
+            # Branch 1 (required): nothing came back, so say what to change and
+            # stop. suggest_outfit is never called with nothing.
+            if not session["search_results"]:
+                session["error"] = _no_results_message(parsed)
+                step = "done"
+            else:
+                step = "select"
+
+        elif step == "select":
+            # Branch 2 (stretch): a "fair" top result loses to a "good" or
+            # "excellent" one in the next two places, if there is one.
+            results = session["search_results"]
+            pick = results[0]
+            if pick["condition"] == "fair":
+                for alt in results[1:3]:
+                    if alt["condition"] in ("good", "excellent"):
+                        pick = alt
+                        break
+            session["selected_item"] = pick
+            step = "suggest"
+
+        elif step == "suggest":
+            session["outfit_suggestion"] = suggest_outfit(
+                session["selected_item"], session["wardrobe"]
+            )
+            step = "card"
+
+        elif step == "card":
+            session["fit_card"] = create_fit_card(
+                session["outfit_suggestion"], session["selected_item"]
+            )
+            step = "done"
+
     return session
+
+
+# ── query parsing (regex) ─────────────────────────────────────────────────────
+
+_PRICE = re.compile(
+    r"(?:under|below|less than|up to|max|no more than|<=?)\s*\$?\s*(\d+(?:\.\d+)?)"
+    r"|\$\s*(\d+(?:\.\d+)?)",
+    re.IGNORECASE,
+)
+_SIZE = re.compile(
+    r"\b(?:in\s+)?size\s+(us\s*\d+(?:\.\d+)?|w\d+(?:\s*l\d+)?|one size|xxs|xs|xxl|xl"
+    r"|small|medium|large|s|m|l|\d+(?:\.\d+)?)\b",
+    re.IGNORECASE,
+)
+_SIZE_WORDS = {"small": "S", "medium": "M", "large": "L"}
+_FILLER = re.compile(
+    r"^\s*(?:i'?m\s+|i am\s+)?(?:looking for|searching for|i want|i need|find me|show me)"
+    r"\s+(?:an?\s+|some\s+)?",
+    re.IGNORECASE,
+)
+
+
+def _parse_query(query: str) -> dict:
+    """Pull a max_price and a size out of the query; what's left is the description."""
+    text = query
+
+    max_price = None
+    match = _PRICE.search(text)
+    if match:
+        max_price = float(match.group(1) or match.group(2))
+        text = text[: match.start()] + " " + text[match.end():]
+
+    size = None
+    match = _SIZE.search(text)
+    if match:
+        raw = match.group(1).strip()
+        size = _SIZE_WORDS.get(raw.lower(), raw.upper())
+        text = text[: match.start()] + " " + text[match.end():]
+
+    description = _FILLER.sub("", text)
+    description = re.sub(r"[,;]+", " ", description)
+    description = re.sub(r"\s+", " ", description).strip(" .")
+    return {"description": description, "size": size, "max_price": max_price}
+
+
+def _no_results_message(parsed: dict) -> str:
+    """
+    Say what the user could change. Re-runs the search with one constraint
+    dropped at a time to find out which one emptied it. No model call here.
+    """
+    desc, size, max_price = parsed["description"], parsed["size"], parsed["max_price"]
+    asked = f"'{desc}'" if desc else "anything"
+    if size:
+        asked += f" in size {size}"
+    if max_price is not None:
+        asked += f" at ${max_price:.0f} or less"
+
+    if desc and not search_listings(desc):
+        return (
+            f"Nothing matched {asked}. No listing mentions '{desc}' at any size or "
+            "price — try a broader word for the item, like 'tee', 'jeans', "
+            "'jacket', 'boots', or 'bag'."
+        )
+
+    tips = []
+    if max_price is not None:
+        no_price = search_listings(desc, size, None)
+        if no_price:
+            cheapest = min(l["price"] for l in no_price)
+            tips.append(f"raise your max price to ${cheapest:.0f} (the cheapest match)")
+    if size:
+        no_size = search_listings(desc, None, max_price)
+        if no_size:
+            sizes = sorted({l["size"] for l in no_size})[:5]
+            tips.append(f"try a different size — it comes in {', '.join(sizes)}")
+    if not tips:
+        tips.append("loosen both your size and your max price")
+
+    return f"Nothing matched {asked}. To find something, " + ", or ".join(tips) + "."
 
 
 # ── running it directly ───────────────────────────────────────────────────────

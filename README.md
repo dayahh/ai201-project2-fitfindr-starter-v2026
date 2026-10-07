@@ -142,8 +142,27 @@ max_price) → `search_results` → `selected_item` → `outfit_suggestion` →
 **One full query**
 
 ```
-$ python app.py ask '...'
+$ python app.py ask 'vintage graphic tee under $30'
 
+  Found:    Graphic Tee — 2003 Tour Bootleg Style — $24.0 on depop
+
+  Outfit:   Outfit one: Pair the Graphic Tee — 2003 Tour Bootleg Style tucked into the Baggy straight-leg jeans, dark wash, finished with the Black combat boots, the Vintage black denim jacket, and the Black crossbody bag. It works because the faded tee and combat boots lean into an authentic grunge aesthetic, while the double denim adds great texture.
+
+Outfit two: Style the Graphic Tee — 2003 Tour Bootleg Style loose over the Wide-leg khaki trousers, paired with the Chunky white sneakers, the Brown leather belt, and the Black cropped zip hoodie worn open. It works because the edgy graphic tee contrasts nicely with clean earth tones for an easy, balanced streetwear look.
+
+  Fit card: Scored this Graphic Tee — 2003 Tour Bootleg Style for just $24 on depop and it has the absolute best worn-in feel. I've been living in it styled with baggy denim and combat boots for that ultimate grungy, effortless look. #thriftfind #streetwear
+```
+
+The top search result for that query was the Vintage Band Tee, which is in "fair" condition, so branch 2 picked the "good" Graphic Tee in second place instead.
+
+**The empty-search branch**
+
+```
+$ python app.py ask 'designer ballgown size XXS under $5'
+
+  Nothing matched 'designer ballgown' in size XXS at $5 or less. No listing mentions 'designer ballgown' at any size or price — try a broader word for the item, like 'tee', 'jeans', 'jacket', 'boots', or 'bag'.
+
+0 model calls this session
 ```
 
 **The three tools, tested one at a time**
