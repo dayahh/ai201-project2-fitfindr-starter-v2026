@@ -37,6 +37,18 @@
 
 <!-- ═══════════════════════ UNIT 3 — THE BUILD ═══════════════════════ -->
 
+## Data Notes (Milestone 1)
+
+**Listing fields:** id, title, description, category, style_tags (list), size,
+condition, price (float), colors (list), brand (str or None, usually None), platform
+
+**Sizes are messy:** "S/M", "XL (oversized)", "US 8.5", "W30 L30", "One Size".
+A plain substring check won't work ("s" is in "us 9").
+
+**Wardrobe item fields:** id, name, category, colors, style_tags, notes
+**Empty wardrobe:** {"items": []}
+
+
 ## What This Does
 
 <!-- Three or four sentences: what a user asks for, and what they get back. -->
