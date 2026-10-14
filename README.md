@@ -220,6 +220,18 @@ Can't write a fit card without an outfit suggestion.
 - *What came back:* Claude explained to me that I shared my key in the wrong place. It corrected these changes.
 - *What I changed:* I made sure to check with my human eyes that I could understand these changes and edits to the env file and it all worked out.
 
+**Unit 4: Moment 3 (the MCP move)**
+
+- *What I asked for:* An explanation of what "uncomment the block" meant in `mcp_server.py`, and help pointing `agent.py` at the server.
+- *What came back:* Claude explained that `#` turns a line off and that Ctrl + / toggles a whole block. It also caught a mistake I made: I had replaced the `from tools import ...` line instead of adding the `call_tool` import below it, which would have crashed the agent the first time a search found something.
+- *What I changed:* I fixed the imports myself. When Claude pointed out that `_no_results_message` also called `search_listings` directly, I asked whether the homework required changing those lines. It said no, and gave me two options. I chose to move them to MCP too, so every search goes through the server.
+
+**Unit 4: Moment 4 (testing honestly)**
+
+- *What I asked for:* Help running Milestones 3–5: scenarios, five tries per criterion, scoring, and one improvement.
+- *What came back:* Claude ran the evals and scored them with fixed rules instead of eyeballing. While writing the diagnosis, it said the empty-wardrobe fit card made up clothes "5 of 5" times. When it scored the same cards with a fixed rule in Milestone 5, the real number was 2 of 5.
+- *What I changed:* We corrected the README to 2 of 5 before measuring the fix. That taught me to trust a counted rule over a summary, even an AI's summary. I also learned why my broken-key test didn't fail at first: VS Code had loaded the old key into my terminal, and a repeated query came from the cache.
+
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
      Don't fill these in during unit 3.
@@ -662,6 +674,40 @@ comes from the rate limit, not from my change.
      you did. "I ran out of time" is fine if it's true. Pretending nothing is
      left is not. -->
 
+**No criterion is still missed, but the agent isn't finished.** All five
+criteria were MET before and after the fix. As Verdicts and Diagnoses explains,
+that's partly because my targets were too easy. These are the problems I know
+are still there.
+
+**1. The search returns the wrong kind of item instead of nothing (problem B).**
+"Black leather jacket under $60" still returns Platform Mary Janes, because
+`search_listings` counts any matching word and the only jacket costs $75. What
+I'd do: score the item type (jacket, boots, tee) above colors and materials, and
+return `[]` if the type doesn't match at all. Then the empty-search branch would
+fire and tell the user to raise their price to $75. I stopped because this unit
+allows one improvement, and changing the ranking could affect criteria 1 and 2,
+so it would need its own before/after run.
+
+**2. The fit card prompt can't tell an empty wardrobe from a full one.**
+My fix stopped the made-up clothes, but it also made the cards sound alike, and
+it treats pieces the user really owns as "plans". The real fix is to pass a
+flag into `create_fit_card` saying whether the wardrobe was empty, and only add
+the rule then. I didn't do it because it changes the tool's inputs, which means
+updating my Tool Inventory and the MCP-facing description. That's more than one
+change.
+
+**3. My criteria check shape, not content.**
+Nothing I measured checks that the item matches what the user asked for. What
+I'd do next: tighten criterion 5 to "under 20 seconds in 4 of 5", and add a
+criterion like "the selected item's category matches the noun in the query, 5 of
+5". I'd test it with tricky phrasings like "nothing over thirty bucks". I
+stopped here because the assignment says to revise criteria only when they
+can't be measured, not to add new ones mid-test.
+
+**On the MCP move:** `search_listings` now runs behind `mcp_server.py`, and
+`agent.py` calls it with `mcp_client.call_tool`. Results were identical to Unit 3.
+The only difference is speed: every call starts the server, so an empty search
+(up to 4 calls) takes a few seconds longer.
 
 
 <!-- ═════════════════════════════════════════════════════════════════════
