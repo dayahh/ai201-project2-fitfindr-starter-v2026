@@ -307,6 +307,7 @@ def create_fit_card(outfit: str, new_item: dict) -> str:
         f"({_format_price(new_item.get('price', 0))}), and the platform "
         f"({new_item.get('platform')}) exactly once each.\n"
         "- Be specific about the vibe of the outfit.\n"
+        "- The outfit is a styling idea, not something they've already worn. Don't claim to own or have worn any other piece — say how you'd style it or plan to.\n"
         f"- {brand_rule}\n"
         "- At most 2 hashtags, at the end of the last sentence.\n"
         "Return only the caption, with no quotes around it."

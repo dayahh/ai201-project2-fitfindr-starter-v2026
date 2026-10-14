@@ -338,9 +338,9 @@ Criterion 5, Try 3: `app.py::cmd_ask`, the slowest try (15.9s), which hit a rate
 
 **Diagnostic run (not one of the five):** the empty-wardrobe scenario
 (`denim jacket under $50`, empty wardrobe) completed 5 of 5 with general styling
-advice. In all 5, though, the fit card described styling the jacket with clothes
-the user doesn't own, for example "when I style it over an olive green slip
-dress with chunky combat boots".
+advice. In 2 of the 5, though, the fit card described styling the jacket with
+clothes the user doesn't own, for example "when I style it over an olive green
+slip dress with chunky combat boots".
 
 ---
 
@@ -411,9 +411,11 @@ the step and the mechanism.
 **A. The fit card makes up clothes when the wardrobe is empty.**
 *Step: `tools.py::create_fit_card`. Place: the model's output, caused by the
 prompt.* In the empty-wardrobe diagnostic run, `suggest_outfit` correctly gave
-general advice in 5 of 5 tries. But all 5 fit cards wrote as if the user
-already owned the pieces, for example "when I style it over an olive green slip
-dress with chunky combat boots". The mechanism: `suggest_outfit`'s empty-wardrobe
+general advice in 5 of 5 tries. But 2 of the 5 fit cards wrote as if the user
+already owned other pieces: "when I style it over an olive green slip dress
+with chunky combat boots" (try 2) and "I love throwing it over a graphic tee
+and baggy cargo pants" (try 4). My manual empty-wardrobe run in Milestone 2 did
+the same ("I've been styling it with baggy distressed denim…"). The mechanism: `suggest_outfit`'s empty-wardrobe
 prompt says "Don't say or imply that they already own anything", but
 `create_fit_card`'s prompt has no such rule. It only ever gets the outfit text,
 so it doesn't know the wardrobe was empty, and its "first person" rule turns
@@ -561,25 +563,95 @@ query I'd never run before.
 
      `python run_eval.py --label after` -->
 
-**What I changed:**
+**What I changed:** I added one rule to the prompt in
+`tools.py::create_fit_card`. Nothing else changed.
 
-**Which failure it was meant to fix:**
+```python
+"- The outfit is a styling idea, not something they've already worn. Don't claim to own or have worn any other piece — say how you'd style it or plan to.\n"
+```
+
+**Which failure it was meant to fix:** problem A from my diagnosis. With an
+empty wardrobe, the fit card sometimes claimed the user already owned other
+clothes ("when I style it over an olive green slip dress…"). I picked this one
+because the diagnosis pointed at a single place: `suggest_outfit`'s prompt has
+a "don't imply they own anything" rule, and `create_fit_card`'s prompt didn't.
+I fixed it with a prompt rule rather than by passing the wardrobe into
+`create_fit_card`, because that would have changed the tool's inputs, and the
+unit allows one change.
+
+**How I measured it:** none of my five criteria covers this, so I scored the
+empty-wardrobe diagnostic row (`denim jacket under $50`, empty wardrobe) with a
+fixed rule, before and after. A try **FAILs** if the fit card says "I" followed by
+a present or past styling verb ("I style", "I've been wearing", "I love
+throwing"), or "my" followed by a clothing item ("my slip dress"). Future or
+hypothetical phrasing ("I'm planning to style", "I'd pair") **passes**. Then I
+re-ran all five criteria to check that nothing else broke.
 
 ### Run Log — After
 
+`python run_eval.py --label after` (caching off, temperature 0.9):
+[results/run_2026-10-14_0208_after.md](results/run_2026-10-14_0208_after.md).
+Criterion 5 timing:
+[results/run_2026-10-14_criterion5_timing_after.txt](results/run_2026-10-14_criterion5_timing_after.txt).
+Each try was scored with the same rules as the before run.
+
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. A matching query completes all three tools and returns a fit card | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. An impossible query stops before `suggest_outfit` and names what to change | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. The item passed to `suggest_outfit` is `session["selected_item"]` | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card mentions the price and is 2–4 sentences | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. Response in under a minute from the `ask` command | 4 of 5 | PASS (7.2s) | PASS (7.2s) | PASS (6.7s) | PASS (6.7s) | PASS (6.7s) | MET (5/5) |
+| Empty-wardrobe fit card doesn't claim the user owns other pieces _(diagnostic, not one of my five)_ | — | PASS | PASS | PASS | PASS | PASS | 5/5 |
 
-**Did it help, and how do I know:**
+**Before and after, side by side**
 
-<!-- If it made things worse, say that. Honestly reported, that earns full
-     credit and is more interesting than one that worked. -->
+| | Before | After |
+|---|---|---|
+| 1. Matching query → fit card | 5/5 MET | 5/5 MET |
+| 2. Impossible query stops early | 5/5 MET | 5/5 MET |
+| 3. Selected item reaches `suggest_outfit` | 5/5 MET | 5/5 MET |
+| 4. Price + 2–4 sentences | 5/5 MET (all 2 sentences) | 5/5 MET (four at 2 sentences, one at 3) |
+| 5. Under a minute | 5/5 MET (6.7–15.9s) | 5/5 MET (6.7–7.2s) |
+| **Empty wardrobe: no made-up ownership** | **3/5** | **5/5** |
 
+Before, failing tries 2 and 4:
+
+```
+…It has such a cool, effortless vibe when I style it over an olive green slip dress with chunky combat boots…
+…I love throwing it over a graphic tee and baggy cargo pants for an effortlessly cool, nineties-inspired fit…
+```
+
+After, the same scenario, try 5 (it suggests the same slip dress, but as a plan):
+
+```
+Scored this vintage Wrangler Denim Jacket — Light Wash, Cropped on poshmark for just $42, and I'm already planning to style it over an olive green slip dress with knee-high boots. The structured shoulders will give such a cool edge to the romantic streetwear vibe. #thriftfind #streetwear
+```
+
+**Did it help, and how do I know:** yes, for the failure it targeted. The
+empty-wardrobe cards went from 3/5 to 5/5 on the ownership rule, and all five
+criteria stayed MET. It wasn't free, though, and here's what got worse:
+
+- **The cards got more alike.** Most after cards open with nearly the same
+  line: "I'm already dreaming up ways to style it" or "I'm already planning
+  how to…", followed by "I'm thinking of pairing it with…". The before cards
+  varied more. The new rule pushed the model toward one safe template.
+- **The rule also applies when it isn't needed.** With the example wardrobe,
+  the user *does* own the jeans and boots, but the cards now talk about them as
+  plans ("I'm thinking of pairing it with the baggy straight-leg jeans"). The
+  prompt can't tell an empty wardrobe from a full one, because it never sees
+  the wardrobe.
+- **One new rule break.** Criterion 4, try 2 switched to second person partway
+  through ("Alternatively, you could throw an oversized crewneck right over
+  it…"), which breaks the prompt's "first person" rule. It didn't fail
+  criterion 4, which only checks price and sentence count, but it didn't
+  happen in the before run.
+- **A borderline pass.** Empty-wardrobe try 3 ends with "I can't wait to throw
+  it over everything in my closet". That passes my rule because it doesn't name
+  a specific item, but it still assumes a closet the user hasn't saved.
+
+Criterion 5's after times were tighter (no rate-limit wait this time), but that
+comes from the rate limit, not from my change.
 
 
 ---
