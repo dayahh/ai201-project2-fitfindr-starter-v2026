@@ -121,6 +121,7 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
         if step == "parse":
             session["parsed"] = _parse_query(session["query"])
+            trace.step("parse_query", inputs=session["query"], returned=session["parsed"])
             step = "search"
 
         elif step == "search":
@@ -130,6 +131,12 @@ def run_agent(query: str, wardrobe: dict) -> dict:
                 "size": parsed["size"],
                 "max_price": parsed["max_price"],
             })
+            trace.step(
+                "search_listings (via MCP)",
+                inputs=parsed,
+                returned=session["search_results"],
+                note="branch: empty, stopping" if not session["search_results"] else "branch: results found, continuing",
+            )
 
             # Branch 1 (required): nothing came back, so say what to change and
             # stop. suggest_outfit is never called with nothing.
@@ -150,18 +157,26 @@ def run_agent(query: str, wardrobe: dict) -> dict:
                         pick = alt
                         break
             session["selected_item"] = pick
+            trace.step(
+                "select_item",
+                inputs=f"top result condition: {results[0]['condition']}",
+                returned=pick,
+                note="swapped a fair top result for a better one" if pick is not results[0] else "kept the top result",
+            )
             step = "suggest"
 
         elif step == "suggest":
             session["outfit_suggestion"] = suggest_outfit(
                 session["selected_item"], session["wardrobe"]
             )
+            trace.step("suggest_outfit", inputs=session["selected_item"], returned=session["outfit_suggestion"])
             step = "card"
 
         elif step == "card":
             session["fit_card"] = create_fit_card(
                 session["outfit_suggestion"], session["selected_item"]
             )
+            trace.step("create_fit_card", inputs=session["selected_item"], returned=session["fit_card"])
             step = "done"
 
     return session

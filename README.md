@@ -302,21 +302,104 @@ that produced it:
 **Happy path**
 
 ```
+$ python app.py ask 'vintage graphic tee under $30' --trace
 
+[1] parse_query
+      in:  vintage graphic tee under $30
+      out: dict with keys: description, size, max_price
+[2] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 10 items: Vintage Band Tee — Faded Grey, Graphic Tee — 2003 Tour Bootleg Style, Y2K Baby Tee — Butterfly Print … +7 more
+      →    branch: results found, continuing
+[3] select_item
+      in:  top result condition: fair
+      out: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      →    swapped a fair top result for a better one
+[4] suggest_outfit
+      in:  Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      out: Outfit one: Pair the Graphic Tee — 2003 Tour Bootleg Style tucked into the Baggy straight-leg jeans, dark wash…
+[5] create_fit_card
+      in:  Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      out: Scored this Graphic Tee — 2003 Tour Bootleg Style for just $24 on depop and it has the absolute best worn-in f…
 ```
+
+Step 3 shows the second branch firing: the top search result was in "fair"
+condition, so the loop picked the next "good" or "excellent" result instead.
 
 **Empty search**
 
 ```
+$ python app.py ask 'designer ballgown size XXS under $5' --trace
 
+[1] parse_query
+      in:  designer ballgown size XXS under $5
+      out: dict with keys: description, size, max_price
+[2] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: [] (empty)
+      →    branch: empty, stopping
+
+  Nothing matched 'designer ballgown' in size XXS at $5 or less. No listing mentions 'designer ballgown' at any size or price — try a broader word for the item, like 'tee', 'jeans', 'jacket', 'boots', or 'bag'.
+
+0 model calls this session
 ```
 
-**On the MCP move:** <!-- what changed in your code, and whether anything
-behaved differently afterwards. If the rewire didn't work, say exactly where it
-broke — the error text and the last thing that worked. That earns the point in
-full. -->
+The empty run stops after step 2. `suggest_outfit` and `create_fit_card` never
+run, and no model calls are made.
 
+**On the MCP move:** `search_listings` is now registered as a tool in
+`mcp_server.py`, and `agent.py` no longer imports it. Every search goes through
+`mcp_client.call_tool`: the main search in `run_agent` and the three re-searches
+in `_no_results_message` that work out which constraint emptied the results.
+`suggest_outfit` and `create_fit_card` are still called directly. The results
+came back the same as in Unit 3 (same Graphic Tee, $24, on depop). The one
+difference is speed: each MCP call starts the server, so an empty search,
+which makes up to 4 calls, takes a few seconds longer.
 
+### Failure Modes
+
+All three triggered on purpose. None of them crashed or went silent, so no new
+handlers were needed.
+
+**1. Empty search**: `python app.py ask 'designer ballgown size XXS under $5'`
+
+```
+  Nothing matched 'designer ballgown' in size XXS at $5 or less. No listing mentions 'designer ballgown' at any size or price — try a broader word for the item, like 'tee', 'jeans', 'jacket', 'boots', or 'bag'.
+```
+
+The loop stops before `suggest_outfit`. The message names what failed (no
+listing mentions the item) and what to try (a broader word). Handled by
+`agent.py::_no_results_message`.
+
+**2. Empty wardrobe**: `python app.py ask 'vintage graphic tee under $30' --empty-wardrobe`
+
+```
+  Found:    Graphic Tee — 2003 Tour Bootleg Style — $24.0 on depop
+
+  Outfit:   Lean into the grunge and streetwear aesthetic by pairing the tee with baggy, light-wash distressed denim jeans to create a cool contrast with the black top. Add a chunky black leather belt and worn-in skate sneakers like canvas lows or chunky retro runners. For cooler weather, layer an oversized forest green zip-up hoodie or a distressed black leather jacket over the top. Accessorize with a silver chain necklace and a beanie to complete the effortless, lived-in look.
+```
+
+No crash and no empty string. `suggest_outfit` gives general styling advice
+instead of naming wardrobe pieces. One thing I noticed: the fit card still said
+"I've been styling it with baggy distressed denim…", as if the user owns
+clothes they don't have.
+
+**3. Model unavailable**: changed one character of `GEMINI_API_KEY` in `.env`,
+then ran a new query, `python app.py ask 'white sneakers under $40'`
+
+```
+ModelUnavailable: The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com.
+```
+
+No hang and no stack trace. The message names what broke (the key was rejected)
+and what to do (check `.env` or make a new key). Handled by `generate.py`, which
+raises `ModelUnavailable`, and `app.py`, which prints it as one line.
+
+Two things got in the way while triggering this one. VS Code had already loaded
+the old key into the terminal, and `load_dotenv` doesn't overwrite a value
+that's already set, so I had to run `Remove-Item Env:GEMINI_API_KEY` first. And
+re-running a query I'd already asked came back from the cache, so it needed a
+query I'd never run before.
 
 ---
 
