@@ -364,15 +364,77 @@ dress with chunky combat boots".
 
 | # | Criterion | Target | Verdict | How I decided |
 |---|---|---|---|---|
-| 1 |  |  |  |  |
-| 2 |  |  |  |  |
-| 3 |  |  |  |  |
-| 4 |  |  |  |  |
-| 5 |  |  |  |  |
+| 1 | A matching query completes all three tools and returns a fit card | 4 of 5 | MET (5/5) | All 5 traces show steps 1–5 with a non-empty fit card and no `session["error"]`. 5 passes is at least 4. |
+| 2 | An impossible query stops before `suggest_outfit` and names what to change | 5 of 5 | MET (5/5) | All 5 traces end at step 2 with `[] (empty)`, there's no `suggest_outfit` step, and every message says to "try a broader word". |
+| 3 | The item passed to `suggest_outfit` is `session["selected_item"]` | 5 of 5 | MET (5/5) | In all 5 traces, step 3's output and step 4's input are the same listing (Suede Chelsea Boots — Tan, $44, poshmark). This compares title, price, and platform, because the trace doesn't print the `id` (see below). |
+| 4 | Fit card mentions the price and is 2–4 sentences | 4 of 5 | MET (5/5) | All 5 cards contain "$30" and have exactly 2 sentences once the hashtags are removed. I checked the script's count by reading every card. |
+| 5 | Response in under a minute from the `ask` command | 4 of 5 | MET (5/5) | Times were 7.0s, 6.8s, 15.9s, 6.9s, and 6.7s, all under 60s and all ending in a fit card. |
 
 **Diagnoses**
 
+**No criterion missed, so there's no miss to diagnose.** Honestly, though, the
+clean sweep says more about my targets than about the agent. Here's where each
+target was too low or measured the wrong thing.
 
+- **Criterion 5 was too loose. This is the one I'd tighten first.** I guessed
+  15–30 seconds for a normal run and set the bar at 60. The real runs took about
+  7 seconds, and even the slowest, with a rate-limit wait, took 15.9. A target
+  of "under 20 seconds in 4 of 5" would still leave room for a rate-limit wait
+  and would actually test something.
+- **Criterion 4 was easy to meet because of how the prompt works.**
+  `tools.py::create_fit_card` puts the exact formatted price ("$30") into the
+  prompt and asks for it by name, so the model copies it every time. All 5
+  cards came out at exactly 2 sentences, the bottom of the allowed range. A
+  stricter target would be 5 of 5.
+- **Criterion 3 can't fail with my current code.** `agent.py::run_agent` passes
+  `session["selected_item"]` straight into `suggest_outfit`, so the handoff is
+  the same object every time and could only break if the code changed. It also
+  names the `id`, which the trace doesn't print, so I scored it by title, price,
+  and platform instead. A better version would check that the outfit *text* is
+  about the selected item. On these runs, the outfit named it by exact title in
+  3 of 5 tries and as "suede Chelsea boots" in the other 2, so it was always
+  the same item.
+- **Criterion 1 measured the wrong thing.** It checks that the loop *finishes*,
+  not that it found what the user asked for. My scenario also used an easy
+  query, so it never tested the regex risk my reason named ("nothing over thirty
+  bucks"). See problem B below: a run that styles shoes for someone who asked
+  for a jacket still counts as a PASS here.
+- **Criterion 2 was strict for a good reason.** Nothing on that path is random,
+  so 5 of 5 was the right target and anything less would mean the branch was
+  broken.
+
+**Two real problems the criteria didn't catch**
+
+Both turned up in this unit's testing, outside the five criteria. Each names
+the step and the mechanism.
+
+**A. The fit card makes up clothes when the wardrobe is empty.**
+*Step: `tools.py::create_fit_card`. Place: the model's output, caused by the
+prompt.* In the empty-wardrobe diagnostic run, `suggest_outfit` correctly gave
+general advice in 5 of 5 tries. But all 5 fit cards wrote as if the user
+already owned the pieces, for example "when I style it over an olive green slip
+dress with chunky combat boots". The mechanism: `suggest_outfit`'s empty-wardrobe
+prompt says "Don't say or imply that they already own anything", but
+`create_fit_card`'s prompt has no such rule. It only ever gets the outfit text,
+so it doesn't know the wardrobe was empty, and its "first person" rule turns
+"pair it with a slip dress" into "I style it with my slip dress". The tool
+works; the prompt is missing information it needs.
+
+**B. The search returns a different kind of item instead of nothing.**
+*Step: `tools.py::search_listings` (via MCP), and then the loop's empty
+branch.* `python app.py ask 'black leather jacket under $60'` returned
+**Platform Mary Janes — Black Patent ($55)**. The only leather jacket in the
+data, "90s Leather Bomber — Black", costs $75, so the price filter removed it.
+The search then scores any word overlap across title, description, and colors,
+and the Mary Janes match "black" and "leather". The result list wasn't empty,
+so the empty-search branch never fired and the agent styled shoes for someone
+who asked for a jacket.
+
+**The pattern:** both problems are about *content*, not *shape*. My criteria
+checked that things ran, stopped, and had the right parts (a fit card, a price,
+2–4 sentences). Nothing checked whether the content was true to the user's
+situation: what they asked for, and what they own. That's where my agent
+actually breaks.
 
 ---
 
