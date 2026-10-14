@@ -17,7 +17,8 @@ import re
 
 import config
 import trace
-from tools import search_listings, suggest_outfit, create_fit_card
+from tools import suggest_outfit, create_fit_card
+from mcp_client import call_tool
 from generate import ModelUnavailable
 
 
@@ -124,9 +125,11 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
         elif step == "search":
             parsed = session["parsed"]
-            session["search_results"] = search_listings(
-                parsed["description"], parsed["size"], parsed["max_price"]
-            )
+            session["search_results"] = call_tool("search_listings", {
+                "description": parsed["description"],
+                "size": parsed["size"],
+                "max_price": parsed["max_price"],
+            })
 
             # Branch 1 (required): nothing came back, so say what to change and
             # stop. suggest_outfit is never called with nothing.
@@ -219,7 +222,7 @@ def _no_results_message(parsed: dict) -> str:
     if max_price is not None:
         asked += f" at ${max_price:.0f} or less"
 
-    if desc and not search_listings(desc):
+    if desc and not call_tool("search_listings", {"description": desc}):
         return (
             f"Nothing matched {asked}. No listing mentions '{desc}' at any size or "
             "price — try a broader word for the item, like 'tee', 'jeans', "
@@ -228,12 +231,12 @@ def _no_results_message(parsed: dict) -> str:
 
     tips = []
     if max_price is not None:
-        no_price = search_listings(desc, size, None)
+        no_price = call_tool("search_listings", {"description": desc, "size": size, "max_price": None})
         if no_price:
             cheapest = min(l["price"] for l in no_price)
             tips.append(f"raise your max price to ${cheapest:.0f} (the cheapest match)")
     if size:
-        no_size = search_listings(desc, None, max_price)
+        no_size = call_tool("search_listings", {"description": desc, "size": None, "max_price": max_price})
         if no_size:
             sizes = sorted({l["size"] for l in no_size})[:5]
             tips.append(f"try a different size — it comes in {', '.join(sizes)}")
