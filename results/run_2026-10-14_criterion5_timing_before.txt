@@ -1,0 +1,162 @@
+﻿Criterion 5 timing (before): python app.py ask 'corduroy wide-leg pants'  (AI201_CACHE=0)
+Try 1: 7s  -> fit card
+----- try 1 output -----
+[1] parse_query
+      in:  corduroy wide-leg pants
+      out: dict with keys: description, size, max_price
+[2] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 5 items: Corduroy Wide-Leg Pants — Rust, Wide-Leg Linen Trousers — Natural, Low-Rise Cargo Pants — Khaki … +2 more
+      →    branch: results found, continuing
+[3] select_item
+      in:  top result condition: good
+      out: Corduroy Wide-Leg Pants — Rust ($32.0, depop)
+      →    kept the top result
+[4] suggest_outfit
+      in:  Corduroy Wide-Leg Pants — Rust ($32.0, depop)
+      out: Outfit one pairs the Corduroy Wide-Leg Pants — Rust with the white ribbed tank top, the brown leather belt, an…
+[5] create_fit_card
+      in:  Corduroy Wide-Leg Pants — Rust ($32.0, depop)
+      out: Score these gorgeous Corduroy Wide-Leg Pants — Rust for just $32 on depop and I am obsessed with how they look…
+
+  Found:    Corduroy Wide-Leg Pants — Rust — $32.0 on depop
+
+  Outfit:   Outfit one pairs the Corduroy Wide-Leg Pants — Rust with the white ribbed tank top, the brown leather belt, and the black combat boots. This look leans into a retro earth-toned aesthetic while the fitted tank balances the voluminous wide-leg silhouette.
+
+Outfit two combines the Corduroy Wide-Leg Pants — Rust with the oversized grey crewneck sweatshirt, the brown leather belt, and the chunky white sneakers. Tucking in the cozy sweatshirt creates a relaxed yet intentional high-low streetwear vibe that highlights the vintage texture of the cords.
+
+  Fit card: Score these gorgeous Corduroy Wide-Leg Pants — Rust for just $32 on depop and I am obsessed with how they look styled with a tucked-in oversized grey crewneck and chunky white sneakers for that perfect cozy streetwear vibe. They bring the ultimate 70s earth-toned energy to my closet, and I can't wait to wear them all autumn long. #thriftfinds #cottagecore
+
+2 model calls this session, 764 prompt + 194 output tokens
+
+Try 2: 6.8s  -> fit card
+----- try 2 output -----
+[1] parse_query
+      in:  corduroy wide-leg pants
+      out: dict with keys: description, size, max_price
+[2] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 5 items: Corduroy Wide-Leg Pants — Rust, Wide-Leg Linen Trousers — Natural, Low-Rise Cargo Pants — Khaki … +2 more
+      →    branch: results found, continuing
+[3] select_item
+      in:  top result condition: good
+      out: Corduroy Wide-Leg Pants — Rust ($32.0, depop)
+      →    kept the top result
+[4] suggest_outfit
+      in:  Corduroy Wide-Leg Pants — Rust ($32.0, depop)
+      out: Outfit 1: Pair the Corduroy Wide-Leg Pants — Rust with the white ribbed tank top, the brown leather belt, and …
+[5] create_fit_card
+      in:  Corduroy Wide-Leg Pants — Rust ($32.0, depop)
+      out: I am so obsessed with these Corduroy Wide-Leg Pants — Rust I just scored on depop for only $32. They give off …
+
+  Found:    Corduroy Wide-Leg Pants — Rust — $32.0 on depop
+
+  Outfit:   Outfit 1: Pair the Corduroy Wide-Leg Pants — Rust with the white ribbed tank top, the brown leather belt, and the black combat boots. Tuck the tank in to highlight the high waist, using the brown belt to tie into the 70s earth-tone vibe while the combat boots add a grounded edge.
+
+Outfit 2: Style the Corduroy Wide-Leg Pants — Rust with the oversized grey crewneck sweatshirt and chunky white sneakers. The slouchy, oversized grey top balances the structured retro warmth of the rust cords, finished off with chunky sneakers for a casual, effortless look.
+
+  Fit card: I am so obsessed with these Corduroy Wide-Leg Pants — Rust I just scored on depop for only $32. They give off the ultimate 70s earth-tone vibe when I style them with a tucked-in white tank and brown belt, but they are just as good dressed down with an oversized sweatshirt. #vintage #cottagecore
+
+2 model calls this session, 778 prompt + 196 output tokens
+
+Try 3: 15.9s  -> fit card (rate-limit wait)
+----- try 3 output -----
+[1] parse_query
+      in:  corduroy wide-leg pants
+      out: dict with keys: description, size, max_price
+[2] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 5 items: Corduroy Wide-Leg Pants — Rust, Wide-Leg Linen Trousers — Natural, Low-Rise Cargo Pants — Khaki … +2 more
+      →    branch: results found, continuing
+[3] select_item
+      in:  top result condition: good
+      out: Corduroy Wide-Leg Pants — Rust ($32.0, depop)
+      →    kept the top result
+python.exe :   [rate limit] service pushed back. Waiting 9s (attempt 1 of 5). This is the limiter doing its job, not a 
+bug.
+At C:\Users\ohday\AppData\Local\Temp\claude\c--Users-ohday-Desktop-CodePath-AI-Class2026-ai201-project2-fitfindr-starte
+r-v2026\86980286-2479-4cb3-9d88-f1ca3454236c\scratchpad\time_c5.ps1:10 char:13
++     $text = & .venv\Scripts\python.exe app.py ask $query 2>&1 | Out-S ...
++             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (  [rate limit] ...job, not a bug.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[4] suggest_outfit
+      in:  Corduroy Wide-Leg Pants — Rust ($32.0, depop)
+      out: Outfit one pairs the corduroy wide-leg pants with the white ribbed tank top, the brown leather belt, and the b…
+[5] create_fit_card
+      in:  Corduroy Wide-Leg Pants — Rust ($32.0, depop)
+      out: I scored these Corduroy Wide-Leg Pants — Rust on depop for just $32, and they instantly unlocked my ultimate 7…
+
+  Found:    Corduroy Wide-Leg Pants — Rust — $32.0 on depop
+
+  Outfit:   Outfit one pairs the corduroy wide-leg pants with the white ribbed tank top, the brown leather belt, and the black combat boots. It works because the fitted white tank balances the voluminous cords, while the brown belt and combat boots anchor the 70s earth-tone vibe.
+
+Outfit two pairs the corduroy wide-leg pants with the oversized grey crewneck sweatshirt and the chunky white sneakers. It works because the slouchy, oversized grey sweatshirt creates a cozy, modern contrast against the textured vintage pants, and the white sneakers keep the look fresh and casual.
+
+  Fit card: I scored these Corduroy Wide-Leg Pants — Rust on depop for just $32, and they instantly unlocked my ultimate 70s earth-tone vibe. I love wearing them with a fitted tank and combat boots, but they look just as good dressed down with a cozy oversized crewneck. #thriftedstyle #depopseller
+
+3 model calls this session, 770 prompt + 185 output tokens
+
+Try 4: 6.9s  -> fit card
+----- try 4 output -----
+[1] parse_query
+      in:  corduroy wide-leg pants
+      out: dict with keys: description, size, max_price
+[2] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 5 items: Corduroy Wide-Leg Pants — Rust, Wide-Leg Linen Trousers — Natural, Low-Rise Cargo Pants — Khaki … +2 more
+      →    branch: results found, continuing
+[3] select_item
+      in:  top result condition: good
+      out: Corduroy Wide-Leg Pants — Rust ($32.0, depop)
+      →    kept the top result
+[4] suggest_outfit
+      in:  Corduroy Wide-Leg Pants — Rust ($32.0, depop)
+      out: Outfit 1: Pair the Corduroy Wide-Leg Pants — Rust with the white ribbed tank top, the vintage black denim jack…
+[5] create_fit_card
+      in:  Corduroy Wide-Leg Pants — Rust ($32.0, depop)
+      out: I am officially obsessed with these Corduroy Wide-Leg Pants — Rust because the color is just too good for autu…
+
+  Found:    Corduroy Wide-Leg Pants — Rust — $32.0 on depop
+
+  Outfit:   Outfit 1: Pair the Corduroy Wide-Leg Pants — Rust with the white ribbed tank top, the vintage black denim jacket, and the black combat boots. 
+This combination plays on classic vintage textures while keeping the silhouette balanced between the fitted top and the wide-leg bottoms.
+
+Outfit 2: Pair the Corduroy Wide-Leg Pants — Rust with the oversized grey crewneck sweatshirt and the chunky white sneakers. 
+The cozy, slouchy grey crewneck contrasts effortlessly with the rich 70s earth tone of the cords for an easy, streetwear-leaning look.
+
+  Fit card: I am officially obsessed with these Corduroy Wide-Leg Pants — Rust because the color is just too good for autumn. I scored them on depop for $32 and love styling them with an oversized crewneck and chunky sneakers for an easy, streetwear-leaning look. #thriftfind #depopshop
+
+2 model calls this session, 774 prompt + 181 output tokens
+
+Try 5: 6.7s  -> fit card
+----- try 5 output -----
+[1] parse_query
+      in:  corduroy wide-leg pants
+      out: dict with keys: description, size, max_price
+[2] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 5 items: Corduroy Wide-Leg Pants — Rust, Wide-Leg Linen Trousers — Natural, Low-Rise Cargo Pants — Khaki … +2 more
+      →    branch: results found, continuing
+[3] select_item
+      in:  top result condition: good
+      out: Corduroy Wide-Leg Pants — Rust ($32.0, depop)
+      →    kept the top result
+[4] suggest_outfit
+      in:  Corduroy Wide-Leg Pants — Rust ($32.0, depop)
+      out: Outfit one pairs the Corduroy Wide-Leg Pants — Rust with the white ribbed tank top, the brown leather belt, an…
+[5] create_fit_card
+      in:  Corduroy Wide-Leg Pants — Rust ($32.0, depop)
+      out: I am completely obsessed with these Corduroy Wide-Leg Pants — Rust I just scored on depop for $32! They give o…
+
+  Found:    Corduroy Wide-Leg Pants — Rust — $32.0 on depop
+
+  Outfit:   Outfit one pairs the Corduroy Wide-Leg Pants — Rust with the white ribbed tank top, the brown leather belt, and the black combat boots. This look leans into a retro earth-toned vibe, letting the rich color of the cords pop while the belt pulls the silhouette together. 
+
+Outfit two styles the Corduroy Wide-Leg Pants — Rust underneath the oversized grey crewneck sweatshirt, finished with the chunky white sneakers. The contrast between the cozy, slouchy grey top and the vibrant 70s trousers creates an effortless, balanced streetwear aesthetic.
+
+  Fit card: I am completely obsessed with these Corduroy Wide-Leg Pants — Rust I just scored on depop for $32! They give off the ultimate 70s earth-toned retro vibe when I style them with a fitted tank and combat boots, but they're just as cute dressed down with an oversized sweatshirt. #thrifted #vintagestyle
+
+2 model calls this session, 767 prompt + 183 output tokens
+

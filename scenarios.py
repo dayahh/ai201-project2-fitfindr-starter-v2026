@@ -35,18 +35,25 @@ SCENARIOS = [
         "wardrobe": "empty",
         "criterion": None,
     },
-    # TODO: add what your criteria 3, 4 and 5 need.
-    #
-    # Set "criterion" to the number in criteria.md that the scenario tests.
-    # "criterion": None means a diagnostic run — useful to have, but it isn't
-    # one of your five, and run_eval.py marks it as such in the table.
-    #
-    # For a state criterion, any normal query works — what you're checking is
-    # what ends up in the session, not what the user typed.
-    #
-    # For a fit-card criterion, you probably want the SAME query listed more
-    # than once, or several different items, depending on what your criterion
-    # actually says.
+    {
+        # A normal query. Criterion 3 — the item in the session is the item
+        # suggest_outfit received (trace step 3 "out" vs step 4 "in").
+        "name": "selected item reaches suggest_outfit",
+        "query": "suede chelsea boots",
+        "wardrobe": "example",
+        "criterion": 3,
+    },
+    {
+        # A different item from criterion 1, same query five times. Criterion 4
+        # — the fit card mentions the price and is 2-4 sentences.
+        "name": "fit card has price and 2-4 sentences",
+        "query": "silk slip dress",
+        "wardrobe": "example",
+        "criterion": 4,
+    },
+    # Criterion 5 (under a minute from the ask command) isn't here: run_eval.py
+    # doesn't record time. It's measured by timing five `python app.py ask`
+    # runs with the cache off (AI201_CACHE=0) — see the README run log.
 ]
 
 WARDROBES = ("example", "empty")

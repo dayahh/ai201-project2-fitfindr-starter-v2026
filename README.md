@@ -240,18 +240,107 @@ Can't write a fit card without an outfit suggestion.
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. A matching query completes all three tools and returns a fit card | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. An impossible query stops before `suggest_outfit` and names what to change | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. The item passed to `suggest_outfit` is `session["selected_item"]` | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card mentions the price and is 2–4 sentences | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. Response in under a minute from the `ask` command | 4 of 5 | PASS (7.0s) | PASS (6.8s) | PASS (15.9s) | PASS (6.9s) | PASS (6.7s) | MET (5/5) |
 
-**Real output from one try**, pasted as text, naming the file and function
-that produced it:
+**How the tries were run**
+
+- Criteria 1–4: `python run_eval.py --label before`, with caching off and
+  temperature 0.9 (40 model calls). Full output:
+  [results/run_2026-10-14_0157_before.md](results/run_2026-10-14_0157_before.md).
+  The scenarios are in `scenarios.py`.
+- Criterion 5: `run_eval.py` doesn't record time, so I timed five separate
+  `python app.py ask 'corduroy wide-leg pants'` runs with `AI201_CACHE=0`,
+  from launching the command to it exiting. Full output:
+  [results/run_2026-10-14_criterion5_timing_before.txt](results/run_2026-10-14_criterion5_timing_before.txt).
+
+**How each try was scored**
+
+1. PASS if the run didn't crash or stop early, and the trace shows all three
+   tools with a non-empty fit card.
+2. PASS if `session["error"]` is set, the trace has no `suggest_outfit` step,
+   and the message suggests a change.
+3. PASS if the trace's `select_item` output and `suggest_outfit` input are the
+   same listing. The trace prints title, price, and platform rather than the
+   `id`, so this compares those instead of the id.
+4. PASS if the card contains the listing's price (for example "$30") and has 2–4
+   sentences, counting sentence-ending `.` `!` `?` with hashtags removed.
+5. PASS if the command finished in under 60 seconds with a fit card or an error
+   message.
+
+**Real output from one try per criterion**
+
+Criterion 1, Try 1: `agent.py::run_agent` (fit card from `tools.py::create_fit_card`)
 
 ```
+- selected_item: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+- search_results: 10
+
+[1] parse_query
+[2] search_listings (via MCP)
+      out: 10 items: Vintage Band Tee — Faded Grey, Graphic Tee — 2003 Tour Bootleg Style, Y2K Baby Tee — Butterfly Print … +7 more
+      →    branch: results found, continuing
+[3] select_item
+      out: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      →    swapped a fair top result for a better one
+[4] suggest_outfit
+[5] create_fit_card
+
+Fit card:
+Scored this vintage-style Graphic Tee — 2003 Tour Bootleg Style on depop for just $24, and the worn-in cotton is honestly unmatched. I love throwing it on with baggy dark-wash jeans and combat boots for that effortless, heavy grunge-streetwear vibe. #thriftfinds #streetwear
+```
+
+Criterion 2, Try 1: `agent.py::run_agent` (message from `agent.py::_no_results_message`)
 
 ```
+[1] parse_query
+      in:  designer ballgown size XXS under $5
+[2] search_listings (via MCP)
+      out: [] (empty)
+      →    branch: empty, stopping
+
+stopped early: yes — Nothing matched 'designer ballgown' in size XXS at $5 or less. No listing mentions 'designer ballgown' at any size or price — try a broader word for the item, like 'tee', 'jeans', 'jacket', 'boots', or 'bag'.
+```
+
+Criterion 3, Try 1: `agent.py::run_agent` (trace from `trace.py::step`)
+
+```
+[3] select_item
+      in:  top result condition: good
+      out: Suede Chelsea Boots — Tan ($44.0, poshmark)
+      →    kept the top result
+[4] suggest_outfit
+      in:  Suede Chelsea Boots — Tan ($44.0, poshmark)
+```
+
+Criterion 4, Try 1: `tools.py::create_fit_card` (listing price $30)
+
+```
+I scored this gorgeous 90s Silk Slip Dress — Floral, Midi Length on depop for just $30 and I am obsessed. I love styling it with an oversized grey crewneck and combat boots for that ultimate grungy, 90s contrast. #thriftfinds #vintagestyle
+```
+
+Criterion 5, Try 3: `app.py::cmd_ask`, the slowest try (15.9s), which hit a rate-limit wait
+
+```
+[3] select_item
+      out: Corduroy Wide-Leg Pants — Rust ($32.0, depop)
+  [rate limit] service pushed back. Waiting 9s (attempt 1 of 5). This is the limiter doing its job, not a bug.
+[4] suggest_outfit
+[5] create_fit_card
+
+  Fit card: I scored these Corduroy Wide-Leg Pants — Rust on depop for just $32, and they instantly unlocked my ultimate 70s earth-tone vibe. I love wearing them with a fitted tank and combat boots, but they look just as good dressed down with a cozy oversized crewneck. #thriftedstyle #depopseller
+
+3 model calls this session, 770 prompt + 185 output tokens
+```
+
+**Diagnostic run (not one of the five):** the empty-wardrobe scenario
+(`denim jacket under $50`, empty wardrobe) completed 5 of 5 with general styling
+advice. In all 5, though, the fit card described styling the jacket with clothes
+the user doesn't own, for example "when I style it over an olive green slip
+dress with chunky combat boots".
 
 ---
 
