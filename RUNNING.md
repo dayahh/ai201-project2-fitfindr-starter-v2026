@@ -119,6 +119,73 @@ Useful flags on `ask`:
 
 ---
 
+## Capstone run path — Path B (local, with logs)
+
+FitFindr runs on my machine as an HTTP server. I chose Path B: the system only
+calls an API, so it would fit a free host, but I didn't want to sign up with a
+card, and the rubric scores both paths the same.
+
+**The one command that starts it** (from the repo root, venv active, `.env` filled in):
+
+```bash
+python serve.py
+```
+
+It listens on `http://localhost:5000` (set `PORT` to change it) and writes one
+JSON line per request to `logs/requests.jsonl`.
+
+**Ask it something** from a second terminal:
+
+```powershell
+# Windows PowerShell — curl is an alias here, so use Invoke-RestMethod
+Invoke-RestMethod -Method Post -Uri http://localhost:5000/ask -ContentType 'application/json' -Body '{"query": "vintage graphic tee under $30"}'
+```
+
+```bash
+# macOS / Linux
+curl -X POST http://localhost:5000/ask -H 'Content-Type: application/json' \
+  -d '{"query": "vintage graphic tee under $30"}'
+```
+
+**Read the log back:**
+
+```bash
+python -c "import json; [print(json.loads(l)['status'], json.loads(l)['outcome'], json.loads(l)['duration_ms'], 'ms') for l in open('logs/requests.jsonl', encoding='utf-8')]"
+```
+
+**What the environment needs**
+
+| Thing | Value |
+|---|---|
+| Python | 3.13.1 (anything 3.11–3.13 works; not 3.14) |
+| Dependencies | `requirements.txt`, pinned with upper and lower bounds. Tested with Flask 3.1.3, google-genai 1.75.0, mcp 1.30.0, python-dotenv 1.1.1 |
+| Model files | None. The model is `gemini-3.5-flash-lite`, called over the API — nothing is downloaded |
+| Secrets | `GEMINI_API_KEY` in `.env` (copy `.env.example`) |
+| Disk | `logs/` is created on the first request |
+
+**From a clean checkout, start to finish (Windows PowerShell):**
+
+```powershell
+git clone https://github.com/dayahh/ai201-project2-fitfindr-starter-v2026.git
+cd ai201-project2-fitfindr-starter-v2026
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+copy .env.example .env      # then paste your key into .env
+python serve.py
+```
+
+**Status codes you'll see**
+
+| Code | When |
+|---|---|
+| 200 | The agent ran. Check `error` first: a no-match query is a 200 with `error` set and `fit_card` null |
+| 400 | The request body was bad (not JSON, no `query`, `query` not text or empty, bad `wardrobe`, wardrobe over 50 items). The model is never called |
+| 503 | The model couldn't be reached (bad key, network) or stayed rate limited. Try again later |
+| 500 | Anything else. The body says "Something went wrong on our side"; the real exception is in the log's `detail` field |
+
+---
+
 ## Running it somewhere else — **unit 9**
 
 Everything above exits when the command finishes. A host has nothing to keep
