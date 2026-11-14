@@ -801,3 +801,42 @@ Measured with `python measure_cost.py` against a server started with the cache o
 | Wall time | 5.65 s mean, 2.7 s median (2.50–28.14 s; the 28 s run was a rate-limit wait) |
 | API spend | $0. The key is on Gemini's free tier |
 
+
+**Run Log and Verdicts**
+
+Each trial is one `python capstone_eval.py --label before --trial N`, run three times in a row with nothing changed in between. Every trial sends 16 real HTTP requests to `serve.py` (cache off, temperature 0.9) and scores them against the wording in [criteria.md](criteria.md). Raw output: [trial 1](results/capstone_before_trial1.md), [trial 2](results/capstone_before_trial2.md), [trial 3](results/capstone_before_trial3.md).
+
+| Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
+|---|---|---|---|---|---|
+| C1. Bad input → 400 naming the field, 0 model calls | 6 of 6 | 6/6 | 6/6 | 6/6 | MET |
+| C2. Model outage → 503 in <10 s, no exception name or `.env`/key in the body | 5 of 5 | 0/5 | 0/5 | 0/5 | MISSED |
+| C3. Every request → exactly one complete log line, status matches | 16 of 16 | 16/16 | 16/16 | 16/16 | MET |
+| C4. Matching query → 200, no error, fit card contains `$24` | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| C5. Warm matching request under 10,000 ms (log `duration_ms`) | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+
+C5 durations (ms): run 1 6064, 3206, 2533, 2924, 2750 · run 2 5242, 2405, 2784, 2427, 2671 · run 3 5180, 2546, 2503, 2931, 2519. The fit cards were different every time (for example "Scored this amazing Graphic Tee…", "Stumbled across this Graphic Tee…", "Just snagged this Graphic Tee…"), so the model really was re-run.
+
+**Real output, one per criterion (run 1)**
+
+C1: `serve.py::_validate`, logged by `serve.py::_log`. This is the 51-item wardrobe:
+```
+{"ts": "2026-11-14T20:16:30.245+00:00", "request_id": "be24d85f", "query": "tee", "wardrobe_items": null, "status": 400, "outcome": "bad_request", "selected_item": null, "price": null, "fit_card": null, "error": "'wardrobe' has 51 items; the limit is 50.", "detail": null, "model_calls": 0, "prompt_tokens": 0, "output_tokens": 0, "duration_ms": 0}
+```
+C2 (the miss): `serve.py::ask`'s `ModelUnavailable` handler. The message text comes from `generate.py::_explain`:
+```
+{"ts": "2026-11-14T20:17:02.022+00:00", "request_id": "7fc90551", "query": "vintage graphic tee under $30", "wardrobe_items": 10, "status": 503, "outcome": "model_unavailable", "selected_item": null, "price": null, "fit_card": null, "error": "The styling model is unavailable right now: The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com.", "detail": "ModelUnavailable: The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com.", "model_calls": 1, "prompt_tokens": 0, "output_tokens": 0, "duration_ms": 3865}
+```
+C3: run 1's 16 requests wrote 16 lines. The first and last (`serve.py::_log`):
+```
+{"ts": "2026-11-14T20:16:20.032+00:00", "request_id": "27657dd3", "query": null, "wardrobe_items": null, "status": 400, "outcome": "bad_request", "selected_item": null, "price": null, "fit_card": null, "error": "The body must be a JSON object, e.g. {\"query\": \"vintage graphic tee under $30\"}", "detail": null, "model_calls": 0, "prompt_tokens": 0, "output_tokens": 0, "duration_ms": 0}
+```
+C4 and C5: `agent.py::run_agent` behind `serve.py::ask`:
+```
+{"ts": "2026-11-14T20:16:55.205+00:00", "request_id": "35eb7716", "query": "vintage graphic tee under $30", "wardrobe_items": 10, "status": 200, "outcome": "ok", "selected_item": "Graphic Tee — 2003 Tour Bootleg Style", "price": 24.0, "fit_card": "Just scored this amazing Graphic Tee — 2003 Tour Bootleg Style for only $24 on depop and I’m already planning out how to wear it. I think it would look so cool …", "error": null, "detail": null, "model_calls": 2, "prompt_tokens": 826, "output_tokens": 191, "duration_ms": 2750}
+```
+
+**Diagnosis: C2 missed 15 of 15.** Two of C2's three conditions held every time: all 15 came back as a 503, and the slowest took 5.99 s on the client. All 15 failed the third condition, because the body says "Check GEMINI_API_KEY in your .env file". *Stage:* the `except ModelUnavailable` handler in `serve.py::ask`. *Mechanism:* the handler builds the caller's message with `f"...: {exc}"`, and the exception's text is written by `generate.py::_explain` for the CLI, where the person reading it *is* the one who owns the `.env`. Over HTTP, the person reading it is a stranger who can't fix the key, and the message tells them how the server is configured. The handler reused a message written for a different audience. Because it's code, not the model, it fails the same way 15 of 15.
+
+**What else the runs showed (not a miss):** every client-side time was about 2 s longer than the server's own `duration_ms` (a 400 that took 0 ms on the server took 2.03 s for the caller). I checked it: on this Windows machine `urllib.request.urlopen('http://localhost:5056/health')` took 2.07 s and the same call to `127.0.0.1` took 0.0 s. `localhost` tries IPv6 `::1` first, Flask is only listening on IPv4 `0.0.0.0`, and the fallback costs 2 s. C5 uses the server's log, so it isn't affected. But C2's "under 10 s" was measured on the client and includes that 2 s.
+
+**Pattern:** the three met extension criteria (C1, C3, C5) all depend on code paths I wrote in `serve.py` and that never see the model's text. The one miss is where my code passes through text that someone else wrote for a different reader.
