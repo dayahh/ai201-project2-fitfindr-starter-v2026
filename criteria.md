@@ -119,3 +119,82 @@ I picked under a minute because a normal run only makes 2 model calls, which sho
      A number you missed stays where it is, gets diagnosed, and gets a fix
      attempted. That's where the points are.
      ───────────────────────────────────────────────────────────────────────── -->
+
+---
+---
+
+# Capstone criteria (unit 9): hardened `/ask` endpoint
+
+Written before any capstone test was run. The criteria above are from unit 3 and
+are left as they were. Each criterion below is checked three times (three
+trials), and a trial means the full set of requests listed in that criterion.
+
+## C1. Bad input is rejected before the agent runs
+
+Six malformed requests to `POST /ask` each get HTTP **400** with a JSON `error`
+that names the thing to fix (contains `query`, `wardrobe`, or `JSON`). None of
+them gets a 500, and each one's log record shows `model_calls: 0`. The six are:
+a body that isn't JSON, `{}` (no query), `{"query": "   "}`, `{"query": 123}`,
+`{"query": "tee", "wardrobe": {"items": "abc"}}`, and a wardrobe with 51 items.
+**Target: 6 of 6 in every trial.**
+
+**Why this target:** validation is plain code with no model involved, so the
+same bad request always takes the same path, and anything less than 6 of 6
+means there's a hole. Before this unit, two of these six (`query: 123` and
+`items: "abc"`) crashed with a 500 and a Python exception name. A bad request
+that reaches the model would also spend about 1,000 tokens on nothing.
+
+## C2. A model outage returns a 503 with a sentence a user can act on
+
+With the server started on an invalid `GEMINI_API_KEY` (cache off), five
+different matching queries each come back as HTTP **503** within **10 seconds**.
+The JSON `error` must not contain a Python exception name (`Error:`,
+`Exception`, `Traceback`, `ModelUnavailable`) and must not mention `.env` or
+`GEMINI_API_KEY`. **Target: 5 of 5 in every trial.**
+
+**Why this target:** the person calling a web endpoint can't fix the server's
+key, so telling them to "check your .env" is the wrong message for them, and it
+also leaks how the server is configured. The only fix they can make is to try
+again later. Nothing here is random (a bad key fails the same way every time),
+so 5 of 5 is the right bar. I picked 10 seconds because the failing run is one
+MCP search (about 2 s) plus one rejected model call, so anything near 10 s
+would mean it's retrying something that can't succeed.
+
+## C3. Every request leaves exactly one log record
+
+Across one trial (the 6 bad requests from C1, the 5 bad-key requests from C2,
+and the 5 matching requests from C4, so 16 requests), `logs/requests.jsonl`
+gains exactly **16** new lines. Every line parses as JSON with non-null `ts`,
+`status`, `outcome`, and `duration_ms`, and its `status` matches the HTTP status
+the caller got. **Target: 16 of 16 in every trial.**
+
+**Why this target:** a log is only useful for diagnosis if a missing line
+means a missing request. If even one failure path skips the log, that is
+exactly the kind of failure I'd never find later. The 503 path matters most
+here because it runs in a different server process with a different key.
+
+## C4. The original agent still works through the endpoint
+
+`{"query": "vintage graphic tee under $30"}` sent 5 times to a working server
+(real key, cache off) returns HTTP 200 with `error: null` and a non-empty
+`fit_card` that contains the selected item's price (`$24`).
+**Target: at least 4 of 5 in every trial.**
+
+**Why this target:** this is the regression check. The extension wraps
+`run_agent`, so it shouldn't change what comes out. I allow one miss, not zero,
+because the fit card is written fresh by the model at temperature 0.9 and can
+occasionally drop the price, the same reasoning as my unit 3 criterion 4.
+
+## C5. A warm request answers in under 10 seconds
+
+For those same 5 matching requests, sent one after another to a server that
+has already answered `/health`, the log's `duration_ms` is under **10,000** in
+**at least 4 of 5** in every trial. "Warm" means the server process is already
+running; it does not mean the model was called recently.
+
+**Why this target:** my 10-run cost measurement had a median of 2.7 s, so
+10 s leaves room for a slow model response. But the server's rate limiter
+paused one run for 26 s when calls went over 15 a minute, and a web caller sees
+that as a hang with no message. Allowing 1 of 5 over 10 s accepts one such
+pause per batch. More than that would mean normal use is regularly hitting
+the limit.
