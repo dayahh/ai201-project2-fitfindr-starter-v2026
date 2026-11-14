@@ -91,6 +91,45 @@ app = Flask(__name__)
 _one_at_a_time = threading.Lock()
 
 
+# ── input validation (capstone) ───────────────────────────────────────────────
+
+MAX_WARDROBE_ITEMS = 50   # the whole wardrobe goes into suggest_outfit's prompt
+
+
+def _validate(payload):
+    """
+    Check a request body before anything runs.
+
+    Returns (query, wardrobe, problem). `problem` is None when the request is
+    fine, otherwise one sentence that names the field to fix.
+    """
+    example = '{"query": "vintage graphic tee under $30"}'
+    if not isinstance(payload, dict):
+        return None, None, f"The body must be a JSON object, e.g. {example}"
+
+    query = payload.get("query")
+    if query is None:
+        return None, None, f"Missing 'query'. Send JSON like {example}"
+    if not isinstance(query, str):
+        return None, None, f"'query' must be text, not {type(query).__name__}."
+    query = query.strip()
+    if not query:
+        return None, None, "'query' is empty. Say what you're looking for."
+
+    wardrobe = payload.get("wardrobe")
+    if wardrobe is None:
+        return query, get_example_wardrobe(), None
+    if not isinstance(wardrobe, dict) or not isinstance(wardrobe.get("items"), list):
+        return None, None, "'wardrobe' must be an object with an 'items' list, e.g. {\"items\": []}"
+    items = wardrobe["items"]
+    if len(items) > MAX_WARDROBE_ITEMS:
+        return None, None, (f"'wardrobe' has {len(items)} items; the limit is "
+                            f"{MAX_WARDROBE_ITEMS}.")
+    if not all(isinstance(i, dict) for i in items):
+        return None, None, "Every item in 'wardrobe.items' must be an object with a 'name'."
+    return query, wardrobe, None
+
+
 @app.get("/health")
 def health():
     """Is the server awake? A host pings something like this to find out."""
@@ -107,16 +146,11 @@ def ask():
                                                 example wardrobe the CLI uses.
     Out:  the session dict from run_agent(), as JSON.
     """
-    payload = request.get_json(silent=True) or {}
-    query = (payload.get("query") or "").strip()
-    if not query:
-        # 400 rather than a stack trace: the caller can act on this one.
-        return jsonify({"error": "Send JSON with a 'query' field, e.g. "
-                                 '{"query": "vintage graphic tee under $30"}'}), 400
-
-    wardrobe = payload.get("wardrobe")
-    if not isinstance(wardrobe, dict):
-        wardrobe = get_example_wardrobe()
+    # Capstone: every bad input is caught here, before the agent (and the
+    # model) runs, and comes back as a 400 that names the field to fix.
+    query, wardrobe, problem = _validate(request.get_json(silent=True))
+    if problem:
+        return jsonify({"error": problem}), 400
 
     # A queued request should look like a queued request. Without this the
     # second caller just sits there, and "slow" and "waiting its turn" are
