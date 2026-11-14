@@ -44,6 +44,7 @@ import config  # noqa: F401
 from flask import Flask, jsonify, request
 
 from agent import run_agent
+from generate import ModelUnavailable
 from utils.data_loader import get_example_wardrobe
 
 app = Flask(__name__)
@@ -170,18 +171,30 @@ def ask():
             flush=True,
         )
 
+    # Capstone: sort failures by who can fix them. A model outage or a rate
+    # limit is temporary (503, "try again"); anything else is our bug (500).
+    # Either way the caller gets a sentence, never a Python exception name.
     failure = None
+    status = 200
     session = None
     with _one_at_a_time:
         try:
             session = run_agent(query, wardrobe)
-        except Exception as exc:  # noqa: BLE001 — a 500 with a sentence beats a hang
-            failure = f"{type(exc).__name__}: {exc}"
+        except ModelUnavailable as exc:
+            status, failure = 503, f"The styling model is unavailable right now: {exc}"
+        except RuntimeError as exc:
+            if "rate limited" in str(exc).lower():
+                status, failure = 503, ("The styling model is busy (rate limited). "
+                                        "Wait a minute and try again.")
+            else:
+                status, failure = 500, "Something went wrong on our side. Try again."
+        except Exception:  # noqa: BLE001 — a 500 with a sentence beats a hang
+            status, failure = 500, "Something went wrong on our side. Try again."
 
     # Outside the lock: building a response is not work the next caller should
     # be waiting on.
     if failure is not None:
-        return jsonify({"error": failure}), 500
+        return jsonify({"error": failure}), status
 
     return jsonify(session)
 
