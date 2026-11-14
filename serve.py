@@ -238,8 +238,12 @@ def ask():
         try:
             session = run_agent(query, wardrobe)
         except ModelUnavailable as exc:
-            status, failure = 503, f"The styling model is unavailable right now: {exc}"
-            record["detail"] = _short(f"{type(exc).__name__}: {exc}")
+            # Capstone improvement: generate.py's message is for whoever owns
+            # the .env ("Check GEMINI_API_KEY..."). The caller can't act on
+            # that, so they get a fixed sentence; the real one goes in the log.
+            status, failure = 503, ("The styling model can't be reached right now. "
+                                    "Your request was fine. Try again in a few minutes.")
+            record["detail"] = _short(f"{type(exc).__name__}: {exc}", limit=300)
         except RuntimeError as exc:
             record["detail"] = _short(f"{type(exc).__name__}: {exc}")
             if "rate limited" in str(exc).lower():
