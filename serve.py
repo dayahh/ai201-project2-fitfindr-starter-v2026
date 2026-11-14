@@ -27,15 +27,20 @@ web server has to be. The reason is worth reading before you deploy: see the
 note above `_one_at_a_time` below — it also decides which gunicorn worker you
 can use.
 
-⚠️ There is deliberately NO logging, NO timing and NO request counting in this
-file. That is unit 9's follow-along: you instrument this yourself, first, and
-then deploy it. A structured log you were handed teaches you nothing about
-what belongs in one — and the timing field is the one everybody skips.
+Capstone (unit 9): every /ask request now appends one JSON record to
+logs/requests.jsonl (timestamp, query, status, outcome, model calls, tokens,
+duration). Bad input gets a 400 and a model outage gets a 503, both with a
+sentence instead of a Python exception.
 """
 
+import json
 import os
 import sys
 import threading
+import time
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
 
 # config first, and before anything that talks to the model: it loads your .env
 # and fixes the Windows console encoding for every module that imports it.
@@ -44,6 +49,7 @@ import config  # noqa: F401
 from flask import Flask, jsonify, request
 
 from agent import run_agent
+import generate
 from generate import ModelUnavailable
 from utils.data_loader import get_example_wardrobe
 
@@ -90,6 +96,31 @@ app = Flask(__name__)
 #     gunicorn -k gevent serve:app    ← breaks every MCP call you make
 
 _one_at_a_time = threading.Lock()
+
+
+# ── structured log (capstone) ─────────────────────────────────────────────────
+# One JSON object per line, one line per /ask request — successes, 400s, 503s
+# and 500s alike. A failure that only shows up as a missing line can't be found.
+
+LOG_PATH = Path(os.getenv("FITFINDR_LOG", Path(__file__).parent / "logs" / "requests.jsonl"))
+
+
+def _log(record: dict) -> None:
+    """Append one record. Logging must never break the request it describes."""
+    try:
+        LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with LOG_PATH.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except Exception as exc:  # noqa: BLE001
+        print(f"  [serve] couldn't write the log: {exc}", file=sys.stderr, flush=True)
+
+
+def _short(value, limit=160):
+    """Keep log lines readable: long text is cut, non-text is shown as its repr."""
+    if value is None:
+        return None
+    text = value if isinstance(value, str) else repr(value)
+    return text if len(text) <= limit else text[:limit] + "…"
 
 
 # ── input validation (capstone) ───────────────────────────────────────────────
@@ -147,22 +178,45 @@ def ask():
                                                 example wardrobe the CLI uses.
     Out:  the session dict from run_agent(), as JSON.
     """
+    started = time.perf_counter()
+    payload = request.get_json(silent=True)
+    record = {
+        "ts": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+        "request_id": uuid.uuid4().hex[:8],
+        "query": _short(payload.get("query") if isinstance(payload, dict) else payload),
+        "wardrobe_items": None,
+        "status": None,
+        "outcome": None,
+        "selected_item": None,
+        "price": None,
+        "fit_card": None,
+        "error": None,
+        "detail": None,
+        "model_calls": 0,
+        "prompt_tokens": 0,
+        "output_tokens": 0,
+        "duration_ms": None,
+    }
+
+    def finish(body, status, outcome):
+        record["status"] = status
+        record["outcome"] = outcome
+        record["duration_ms"] = round((time.perf_counter() - started) * 1000)
+        _log(record)
+        return jsonify(body), status
+
     # Capstone: every bad input is caught here, before the agent (and the
     # model) runs, and comes back as a 400 that names the field to fix.
-    query, wardrobe, problem = _validate(request.get_json(silent=True))
+    query, wardrobe, problem = _validate(payload)
     if problem:
-        return jsonify({"error": problem}), 400
+        record["error"] = problem
+        return finish({"error": problem}, 400, "bad_request")
+    record["wardrobe_items"] = len(wardrobe.get("items") or [])
 
     # A queued request should look like a queued request. Without this the
     # second caller just sits there, and "slow" and "waiting its turn" are
     # indistinguishable from the outside — which is how people conclude the
     # deployment is broken when it is behaving exactly as designed.
-    #
-    # This is NOT the logging you add in the follow-along. It prints nothing
-    # on the normal path, carries no timing and counts nothing; it says only
-    # that this request had to wait. `locked()` can be a moment out of date,
-    # so the note is occasionally missed — which costs nothing, because
-    # nothing depends on it.
     if _one_at_a_time.locked():
         print(
             "  [serve] another request is still running. This one is waiting "
@@ -173,30 +227,47 @@ def ask():
 
     # Capstone: sort failures by who can fix them. A model outage or a rate
     # limit is temporary (503, "try again"); anything else is our bug (500).
-    # Either way the caller gets a sentence, never a Python exception name.
+    # Either way the caller gets a sentence, never a Python exception name —
+    # the exception itself goes in the log's "detail" field instead.
     failure = None
     status = 200
     session = None
     with _one_at_a_time:
+        calls_before = generate.call_count()
+        tokens_before = generate.token_counts()
         try:
             session = run_agent(query, wardrobe)
         except ModelUnavailable as exc:
             status, failure = 503, f"The styling model is unavailable right now: {exc}"
+            record["detail"] = _short(f"{type(exc).__name__}: {exc}")
         except RuntimeError as exc:
+            record["detail"] = _short(f"{type(exc).__name__}: {exc}")
             if "rate limited" in str(exc).lower():
                 status, failure = 503, ("The styling model is busy (rate limited). "
                                         "Wait a minute and try again.")
             else:
                 status, failure = 500, "Something went wrong on our side. Try again."
-        except Exception:  # noqa: BLE001 — a 500 with a sentence beats a hang
+        except Exception as exc:  # noqa: BLE001 — a 500 with a sentence beats a hang
             status, failure = 500, "Something went wrong on our side. Try again."
+            record["detail"] = _short(f"{type(exc).__name__}: {exc}")
+        tokens_after = generate.token_counts()
+        record["model_calls"] = generate.call_count() - calls_before
+        record["prompt_tokens"] = tokens_after["prompt"] - tokens_before["prompt"]
+        record["output_tokens"] = tokens_after["output"] - tokens_before["output"]
 
     # Outside the lock: building a response is not work the next caller should
     # be waiting on.
     if failure is not None:
-        return jsonify({"error": failure}), status
+        record["error"] = failure
+        outcome = "model_unavailable" if status == 503 else "server_error"
+        return finish({"error": failure}, status, outcome)
 
-    return jsonify(session)
+    item = session.get("selected_item") or {}
+    record["selected_item"] = item.get("title")
+    record["price"] = item.get("price")
+    record["fit_card"] = _short(session.get("fit_card"))
+    record["error"] = session.get("error")
+    return finish(session, 200, "no_match" if session.get("error") else "ok")
 
 
 if __name__ == "__main__":
