@@ -1,0 +1,194 @@
+
+FitFindr is listening on http://localhost:5055
+It runs one request at a time — a second one waits for the first.
+Ask it something (single quotes, as always):
+
+  curl -X POST http://localhost:5055/ask \
+    -H 'Content-Type: application/json' \
+    -d '{"query": "vintage graphic tee under $30"}'
+
+Ctrl-C to stop.
+
+ * Serving Flask app 'serve'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5055
+ * Running on http://10.0.0.247:5055
+Press CTRL+C to quit
+127.0.0.1 - - [14/Nov/2026 15:16:17] "GET /health HTTP/1.1" 200 -
+127.0.0.1 - - [14/Nov/2026 15:16:20] "POST /ask HTTP/1.1" 400 -
+127.0.0.1 - - [14/Nov/2026 15:16:22] "POST /ask HTTP/1.1" 400 -
+127.0.0.1 - - [14/Nov/2026 15:16:24] "POST /ask HTTP/1.1" 400 -
+127.0.0.1 - - [14/Nov/2026 15:16:26] "POST /ask HTTP/1.1" 400 -
+127.0.0.1 - - [14/Nov/2026 15:16:28] "POST /ask HTTP/1.1" 400 -
+127.0.0.1 - - [14/Nov/2026 15:16:30] "POST /ask HTTP/1.1" 400 -
+[1] parse_query
+      in:  vintage graphic tee under $30
+      out: dict with keys: description, size, max_price
+[2] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 10 items: Vintage Band Tee — Faded Grey, Graphic Tee — 2003 Tour Bootleg Style, Y2K Baby Tee — Butterfly Print … +7 more
+      →    branch: results found, continuing
+[3] select_item
+      in:  top result condition: fair
+      out: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      →    swapped a fair top result for a better one
+[4] suggest_outfit
+      in:  Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      out: Outfit 1: Pair the Graphic Tee — 2003 Tour Bootleg Style with Baggy straight-leg jeans, dark wash, Vintage bla…
+[5] create_fit_card
+      in:  Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      out: Scored this amazing Graphic Tee — 2003 Tour Bootleg Style on depop for just $24 and I'm already dreaming up wa…
+127.0.0.1 - - [14/Nov/2026 15:16:38] "POST /ask HTTP/1.1" 200 -
+[6] parse_query
+      in:  vintage graphic tee under $30
+      out: dict with keys: description, size, max_price
+[7] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 10 items: Vintage Band Tee — Faded Grey, Graphic Tee — 2003 Tour Bootleg Style, Y2K Baby Tee — Butterfly Print … +7 more
+      →    branch: results found, continuing
+[8] select_item
+      in:  top result condition: fair
+      out: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      →    swapped a fair top result for a better one
+[9] suggest_outfit
+      in:  Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      out: Outfit 1: Pair the Graphic Tee — 2003 Tour Bootleg Style with the baggy straight-leg jeans, dark wash, black c…
+[10] create_fit_card
+      in:  Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      out: Scored this vintage-style bootleg tee on depop for just $24 and I'm already obsessed with how soft it is. I'm …
+127.0.0.1 - - [14/Nov/2026 15:16:43] "POST /ask HTTP/1.1" 200 -
+[11] parse_query
+      in:  vintage graphic tee under $30
+      out: dict with keys: description, size, max_price
+[12] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 10 items: Vintage Band Tee — Faded Grey, Graphic Tee — 2003 Tour Bootleg Style, Y2K Baby Tee — Butterfly Print … +7 more
+      →    branch: results found, continuing
+[13] select_item
+      in:  top result condition: fair
+      out: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      →    swapped a fair top result for a better one
+[14] suggest_outfit
+      in:  Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      out: Outfit 1: Pair the Graphic Tee — 2003 Tour Bootleg Style with Baggy straight-leg jeans, dark wash, Vintage bla…
+[15] create_fit_card
+      in:  Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      out: I just scored this Graphic Tee — 2003 Tour Bootleg Style for only $24 on depop and I am already obsessed with …
+127.0.0.1 - - [14/Nov/2026 15:16:48] "POST /ask HTTP/1.1" 200 -
+[16] parse_query
+      in:  vintage graphic tee under $30
+      out: dict with keys: description, size, max_price
+[17] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 10 items: Vintage Band Tee — Faded Grey, Graphic Tee — 2003 Tour Bootleg Style, Y2K Baby Tee — Butterfly Print … +7 more
+      →    branch: results found, continuing
+[18] select_item
+      in:  top result condition: fair
+      out: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      →    swapped a fair top result for a better one
+[19] suggest_outfit
+      in:  Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      out: Outfit 1: - Graphic Tee — 2003 Tour Bootleg Style - Baggy straight-leg jeans, dark wash - Vintage black denim …
+[20] create_fit_card
+      in:  Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      out: Scored this Graphic Tee — 2003 Tour Bootleg Style for just $24 on depop and I'm obsessed with the faded graphi…
+127.0.0.1 - - [14/Nov/2026 15:16:53] "POST /ask HTTP/1.1" 200 -
+[21] parse_query
+      in:  vintage graphic tee under $30
+      out: dict with keys: description, size, max_price
+[22] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 10 items: Vintage Band Tee — Faded Grey, Graphic Tee — 2003 Tour Bootleg Style, Y2K Baby Tee — Butterfly Print … +7 more
+      →    branch: results found, continuing
+[23] select_item
+      in:  top result condition: fair
+      out: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      →    swapped a fair top result for a better one
+[24] suggest_outfit
+      in:  Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      out: Outfit 1: Pair the Graphic Tee — 2003 Tour Bootleg Style with Baggy straight-leg jeans, dark wash, Vintage bla…
+[25] create_fit_card
+      in:  Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      out: Just scored this amazing Graphic Tee — 2003 Tour Bootleg Style for only $24 on depop and I’m already planning …
+127.0.0.1 - - [14/Nov/2026 15:16:57] "POST /ask HTTP/1.1" 200 -
+
+FitFindr is listening on http://localhost:5055
+It runs one request at a time — a second one waits for the first.
+Ask it something (single quotes, as always):
+
+  curl -X POST http://localhost:5055/ask \
+    -H 'Content-Type: application/json' \
+    -d '{"query": "vintage graphic tee under $30"}'
+
+Ctrl-C to stop.
+
+ * Serving Flask app 'serve'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5055
+ * Running on http://10.0.0.247:5055
+Press CTRL+C to quit
+127.0.0.1 - - [14/Nov/2026 15:16:59] "GET /health HTTP/1.1" 200 -
+[1] parse_query
+      in:  vintage graphic tee under $30
+      out: dict with keys: description, size, max_price
+[2] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 10 items: Vintage Band Tee — Faded Grey, Graphic Tee — 2003 Tour Bootleg Style, Y2K Baby Tee — Butterfly Print … +7 more
+      →    branch: results found, continuing
+[3] select_item
+      in:  top result condition: fair
+      out: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      →    swapped a fair top result for a better one
+127.0.0.1 - - [14/Nov/2026 15:17:05] "POST /ask HTTP/1.1" 503 -
+[4] parse_query
+      in:  denim jacket under $50
+      out: dict with keys: description, size, max_price
+[5] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 7 items: Denim Jacket — Light Wash, Cropped, High-Waisted Denim Shorts — Cutoff, Denim Vest — Medium Wash, Studded … +4 more
+      →    branch: results found, continuing
+[6] select_item
+      in:  top result condition: excellent
+      out: Denim Jacket — Light Wash, Cropped ($42.0, poshmark)
+      →    kept the top result
+127.0.0.1 - - [14/Nov/2026 15:17:08] "POST /ask HTTP/1.1" 503 -
+[7] parse_query
+      in:  silk slip dress
+      out: dict with keys: description, size, max_price
+[8] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 2 items: 90s Silk Slip Dress — Floral, Midi Length, Silk Button-Down — Sage Green
+      →    branch: results found, continuing
+[9] select_item
+      in:  top result condition: good
+      out: 90s Silk Slip Dress — Floral, Midi Length ($30.0, depop)
+      →    kept the top result
+127.0.0.1 - - [14/Nov/2026 15:17:12] "POST /ask HTTP/1.1" 503 -
+[10] parse_query
+      in:  suede chelsea boots
+      out: dict with keys: description, size, max_price
+[11] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 1 items: Suede Chelsea Boots — Tan
+      →    branch: results found, continuing
+[12] select_item
+      in:  top result condition: fair
+      out: Suede Chelsea Boots — Tan ($44.0, poshmark)
+      →    kept the top result
+127.0.0.1 - - [14/Nov/2026 15:17:15] "POST /ask HTTP/1.1" 503 -
+[13] parse_query
+      in:  corduroy wide-leg pants
+      out: dict with keys: description, size, max_price
+[14] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 5 items: Corduroy Wide-Leg Pants — Rust, Wide-Leg Linen Trousers — Natural, Low-Rise Cargo Pants — Khaki … +2 more
+      →    branch: results found, continuing
+[15] select_item
+      in:  top result condition: good
+      out: Corduroy Wide-Leg Pants — Rust ($32.0, depop)
+      →    kept the top result
+127.0.0.1 - - [14/Nov/2026 15:17:18] "POST /ask HTTP/1.1" 503 -
