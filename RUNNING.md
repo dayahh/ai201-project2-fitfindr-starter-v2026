@@ -189,6 +189,13 @@ python serve.py
 | 503 | The model couldn't be reached (bad key, network) or stayed rate limited. Try again later |
 | 500 | Anything else. The body says "Something went wrong on our side"; the real exception is in the log's `detail` field |
 
+**Running the capstone test:** `python capstone_eval.py --label before --trial 1`
+starts its own servers on port 5055 (one with the real key, one with a fake
+key), sends the 16 requests that criteria C1–C5 need, and writes
+`results/capstone_<label>_trial<N>.md`. **Cost:** with `AI201_CACHE=0 python
+serve.py` running, `python measure_cost.py` sends 10 queries and averages the
+tokens and time from the log.
+
 ---
 
 ## Running it somewhere else — **unit 9**

@@ -801,6 +801,8 @@ Measured with `python measure_cost.py` against a server started with the cache o
 | Wall time | 5.65 s mean, 2.7 s median (2.50–28.14 s; the 28 s run was a rate-limit wait) |
 | API spend | $0. The key is on Gemini's free tier |
 
+*A hundred people a day:* 100 runs × 996 tokens = **99,600 tokens a day** (80,800 prompt + 18,800 output), 100 × 2 = **200 model calls a day**, and 100 × 5.65 s = **565 s (about 9.4 minutes) of server time a day**. The actual spend stays $0 on the free tier. The real limit is the rate: at 15 calls a minute the server can finish about 7 runs a minute, so if more than 7 of those 100 people arrive in the same minute, the 8th waits about 26 s, like the `cargo pants` run above.
+
 
 **Run Log and Verdicts**
 
@@ -873,3 +875,15 @@ Second run log: `python capstone_eval.py --label after --trial N`, three times, 
 | C5 | 5/5 ×3 MET (2,405–6,064 ms) | 5/5 ×3 MET (2,351–5,556 ms) |
 
 *Did it help:* yes. C2 went from 0 of 15 to 15 of 15, and nothing else moved. The 503 timing stayed the same too (3.0–5.2 s on the client, which includes the 2 s `localhost` delay). There is a trade-off, though: "try again in a few minutes" is true for a network blip or a rate limit, but a bad key never recovers by waiting. Before, a caller could at least tell the problem was the key. Now only someone reading `logs/requests.jsonl` can, so the fix only works if someone actually reads the log.
+
+**What's Still Broken**
+
+After the fix, all five criteria are MET, which means some targets were too easy. C5 was set too low. The slowest warm request in 30 tries was 6,064 ms and the median was about 2,550 ms, so I'd tighten it to "under 4,000 ms in 4 of 5". That still allows for the first request of each server, which ran 4.5–6.1 s every time because `generate.py` builds its client on the first call. C4 came out 30 of 30, so it should be 5 of 5. Two problems none of my criteria caught are also still there. On Windows, `localhost` adds 2 s to every request because of the IPv6 fallback (binding Flask to `::` as well would fix it). And a bad key now looks like a temporary outage to the caller, as described in The Improvement. I stopped there because the unit allows one improvement, and both of these would need their own before-and-after runs.
+
+*What I'd do first with another unit:* stop the rate limiter from sleeping inside a web request. When a wait would be longer than a few seconds, I'd return a 503 with a `Retry-After` header instead. The 28-second `cargo pants` run in my logged session is the failure a real user would hit first at 100 people a day, and none of my five criteria sent more than 10 model calls in a minute, so the tests never reached it.
+
+**How I Used AI**
+
+*Moment 1: checking the "before" behavior.* I asked Claude to harden `serve.py`. Before writing any code, it sent the original `serve.py` two bad requests (`{"query": 123}` and a wardrobe whose `items` was a string). Both crashed with a 500, and one returned `"AttributeError: 'str' object has no attribute 'get'"` to the caller. That became C1's reason, and it's why I tested exact bad inputs instead of "bad input" in general.
+
+*Moment 2: the 2-second gap.* While scoring the runs, Claude noticed every client time was about 2 s higher than the server's `duration_ms`. It guessed it was IPv6 `localhost`, but checked before writing anything: `localhost` took 2.07 s and `127.0.0.1` took 0.0 s. I kept C5 measured from the server log, so it measures my system and not the client's DNS, and put the delay under What's Still Broken instead of treating it as a miss. One honest note: Claude also drafted the capstone criteria in `criteria.md` from my scope, even though the brief says to write them yourself.
