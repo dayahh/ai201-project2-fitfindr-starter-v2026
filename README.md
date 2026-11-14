@@ -747,3 +747,15 @@ The only difference is speed: every call starts the server, so an empty search
 ---
 
 📖 **How to run this project: [RUNNING.md](RUNNING.md)**
+
+---
+
+## Capstone
+
+**What This Extends**
+
+This extends FitFindr, my Unit 3–4 thrifting agent (search → outfit → fit card, with `search_listings` behind MCP). Before this unit it only ran from the command line, and `serve.py` was the untouched starter: any bad request body or model failure turned into a 500 with a raw Python exception in it. What's new is a hardened `POST /ask` endpoint that rejects bad input with a 400, turns a model outage into a 503 with a readable message, and writes one structured log record for every request, including the failed ones.
+
+**The Shape**
+
+Shape B — harden against failure. I'm adding one layer to `serve.py`: input validation before the agent runs, and failure handling around it, so the bad path gives a clear answer instead of a stack trace. Out of scope: I'm not fixing the search ranking bug from Unit 4 (the "black leather jacket" query returning shoes), I'm not changing any of the three tools or their prompts, and I'm not hosting it online or adding a UI.
