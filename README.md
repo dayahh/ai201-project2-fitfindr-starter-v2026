@@ -839,4 +839,37 @@ C4 and C5: `agent.py::run_agent` behind `serve.py::ask`:
 
 **What else the runs showed (not a miss):** every client-side time was about 2 s longer than the server's own `duration_ms` (a 400 that took 0 ms on the server took 2.03 s for the caller). I checked it: on this Windows machine `urllib.request.urlopen('http://localhost:5056/health')` took 2.07 s and the same call to `127.0.0.1` took 0.0 s. `localhost` tries IPv6 `::1` first, Flask is only listening on IPv4 `0.0.0.0`, and the fallback costs 2 s. C5 uses the server's log, so it isn't affected. But C2's "under 10 s" was measured on the client and includes that 2 s.
 
-**Pattern:** the three met extension criteria (C1, C3, C5) all depend on code paths I wrote in `serve.py` and that never see the model's text. The one miss is where my code passes through text that someone else wrote for a different reader.
+**Pattern:** there's only one miss, so there's no cluster to find. The contrast is still worth noting. C1 and C3 only check messages and records that `serve.py` builds itself, and they held 3 of 3. C2 is the one place where `serve.py` passes along text it didn't write, and that's where it broke.
+
+**The Improvement**
+
+*What I changed:* one thing, in the `except ModelUnavailable` handler in `serve.py::ask`. The caller now gets a fixed sentence, "The styling model can't be reached right now. Your request was fine. Try again in a few minutes.", and the original exception text only goes into the log's `detail` field. I didn't change `generate.py::_explain`, because the CLI still needs the "check your .env" message. Its reader is the person who owns the key.
+
+*Why:* the diagnosis put the C2 miss in that handler. It was passing through a message written for the CLI user to a web caller. Fixing it where `serve.py` hands text to the caller fixes the HTTP path without breaking the CLI.
+
+*After, the same 503 in the log* (`serve.py::_log`, run 1). The caller sees `error`, the operator still has `detail`:
+```
+{"ts": "2026-11-14T20:21:07.479+00:00", "request_id": "877ed3cd", "query": "vintage graphic tee under $30", "wardrobe_items": 10, "status": 503, "outcome": "model_unavailable", "selected_item": null, "price": null, "fit_card": null, "error": "The styling model can't be reached right now. Your request was fine. Try again in a few minutes.", "detail": "ModelUnavailable: The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com.", "model_calls": 1, "prompt_tokens": 0, "output_tokens": 0, "duration_ms": 2949}
+```
+
+Second run log: `python capstone_eval.py --label after --trial N`, three times, same requests, same scoring. Raw output: [trial 1](results/capstone_after_trial1.md), [trial 2](results/capstone_after_trial2.md), [trial 3](results/capstone_after_trial3.md).
+
+| Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
+|---|---|---|---|---|---|
+| C1. Bad input → 400 naming the field, 0 model calls | 6 of 6 | 6/6 | 6/6 | 6/6 | MET |
+| C2. Model outage → 503 in <10 s, no exception name or `.env`/key in the body | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| C3. Every request → exactly one complete log line, status matches | 16 of 16 | 16/16 | 16/16 | 16/16 | MET |
+| C4. Matching query → 200, no error, fit card contains `$24` | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| C5. Warm matching request under 10,000 ms (log `duration_ms`) | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+
+**Before and after, side by side**
+
+| Criterion | Before (runs 1/2/3) | After (runs 1/2/3) |
+|---|---|---|
+| C1 | 6/6, 6/6, 6/6 MET | 6/6, 6/6, 6/6 MET |
+| C2 | **0/5, 0/5, 0/5 MISSED** | **5/5, 5/5, 5/5 MET** |
+| C3 | 16/16 ×3 MET | 16/16 ×3 MET |
+| C4 | 5/5 ×3 MET | 5/5 ×3 MET |
+| C5 | 5/5 ×3 MET (2,405–6,064 ms) | 5/5 ×3 MET (2,351–5,556 ms) |
+
+*Did it help:* yes. C2 went from 0 of 15 to 15 of 15, and nothing else moved. The 503 timing stayed the same too (3.0–5.2 s on the client, which includes the 2 s `localhost` delay). There is a trade-off, though: "try again in a few minutes" is true for a network blip or a rate limit, but a bad key never recovers by waiting. Before, a caller could at least tell the problem was the key. Now only someone reading `logs/requests.jsonl` can, so the fix only works if someone actually reads the log.
