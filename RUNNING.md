@@ -153,6 +153,11 @@ curl -X POST http://localhost:5000/ask -H 'Content-Type: application/json' \
 python -c "import json; [print(json.loads(l)['status'], json.loads(l)['outcome'], json.loads(l)['duration_ms'], 'ms') for l in open('logs/requests.jsonl', encoding='utf-8')]"
 ```
 
+In Windows PowerShell 5.1, use `Get-Content logs\requests.jsonl -Encoding UTF8`.
+Without `-Encoding UTF8` the em-dashes in listing titles show up as `â€”`. The
+file itself is fine; only the display is wrong. I found this the first time I
+followed these steps from a clean clone.
+
 **What the environment needs**
 
 | Thing | Value |
