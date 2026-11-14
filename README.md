@@ -884,6 +884,14 @@ After the fix, all five criteria are MET, which means some targets were too easy
 
 **How I Used AI**
 
-*Moment 1: checking the "before" behavior.* I asked Claude to harden `serve.py`. Before writing any code, it sent the original `serve.py` two bad requests (`{"query": 123}` and a wardrobe whose `items` was a string). Both crashed with a 500, and one returned `"AttributeError: 'str' object has no attribute 'get'"` to the caller. That became C1's reason, and it's why I tested exact bad inputs instead of "bad input" in general.
+**Moment 1: checking the "before" behavior**
 
-*Moment 2: the 2-second gap.* While scoring the runs, Claude noticed every client time was about 2 s higher than the server's `duration_ms`. It guessed it was IPv6 `localhost`, but checked before writing anything: `localhost` took 2.07 s and `127.0.0.1` took 0.0 s. I kept C5 measured from the server log, so it measures my system and not the client's DNS, and put the delay under What's Still Broken instead of treating it as a miss. One honest note: Claude also drafted the capstone criteria in `criteria.md` from my scope, even though the brief says to write them yourself.
+- *What I asked for:* I asked Claude to harden `serve.py` so bad requests and model failures don't crash it.
+- *What came back:* Before changing anything, Claude sent the original `serve.py` two bad requests (`{"query": 123}` and a wardrobe whose `items` was a string). Both crashed with a 500, and one sent `"AttributeError: 'str' object has no attribute 'get'"` back to the caller.
+- *What I changed:* Seeing the crash first made me want C1 to list the exact six bad requests instead of just saying "bad input," so anyone could re-run it and score it the same way. I also kept the rule that a bad request must make 0 model calls, because sending junk to the model still costs tokens.
+
+**Moment 2: the 2-second gap**
+
+- *What I asked for:* I asked Claude to run my three test trials and score them.
+- *What came back:* Claude noticed every client time was about 2 s longer than the server's `duration_ms`. It tested the cause instead of guessing: `localhost` took 2.07 s and `127.0.0.1` took 0.0 s.
+- *What I changed:* I kept C5 measured from the server's log, because it's meant to measure my system, not the computer sending the request. I listed the 2-second delay under What's Still Broken instead of counting it as a miss, and I learned that on Windows `localhost` can be slower than `127.0.0.1`.
